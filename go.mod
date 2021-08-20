@@ -1,3 +1,3 @@
 module github.com/p7chkn/go-musthave-shortener-tpl
 
-go 1.17
+go 1.16

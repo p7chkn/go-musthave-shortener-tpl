@@ -10,24 +10,24 @@ import (
 
 var data = url.Values{}
 
-func AddUrl(longUrl string) string {
-	shortUrl := shorterURL(longUrl)
-	data.Set(shortUrl, longUrl)
-	return shortUrl
+func AddURL(longURL string) string {
+	shortURL := shorterURL(longURL)
+	data.Set(shortURL, longURL)
+	return shortURL
 }
 
-func GetUrl(shortUrl string) (string, error) {
-	result := data.Get(shortUrl)
+func GetURL(shortURL string) (string, error) {
+	result := data.Get(shortURL)
 	if result == "" {
 		return "", errors.New("Not found")
 	}
 	return result, nil
 }
 
-func shorterURL(longUrl string) string {
-	splitUrl := strings.Split(longUrl, "://")
+func shorterURL(longURL string) string {
+	splitURL := strings.Split(longURL, "://")
 	hasher := sha1.New()
-	hasher.Write([]byte(splitUrl[1]))
+	hasher.Write([]byte(splitURL[1]))
 	url_hash := base64.URLEncoding.EncodeToString(hasher.Sum(nil))
 	return string(url_hash)
 }

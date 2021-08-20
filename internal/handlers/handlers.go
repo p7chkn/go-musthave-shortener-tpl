@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -9,11 +8,9 @@ import (
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/shortener"
 )
 
-func UrlHandler(w http.ResponseWriter, r *http.Request) {
+func URLHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
-
-	result := map[string]string{}
 
 	f := func(c rune) bool {
 		return c == '/'
@@ -23,8 +20,7 @@ func UrlHandler(w http.ResponseWriter, r *http.Request) {
 
 	if len(splitURL) > 1 {
 		w.WriteHeader(http.StatusNotFound)
-		result["detail"] = "Page not found"
-		json.NewEncoder(w).Encode(result)
+		w.Write([]byte("Page not found"))
 		return
 	}
 
@@ -34,17 +30,15 @@ func UrlHandler(w http.ResponseWriter, r *http.Request) {
 
 		if len(splitURL) < 1 {
 			w.WriteHeader(http.StatusBadRequest)
-			result["detail"] = "Bad request"
-			json.NewEncoder(w).Encode(result)
+			w.Write([]byte("Bad request"))
 			return
 		}
 
-		long, err := shortener.GetUrl(splitURL[0])
+		long, err := shortener.GetURL(splitURL[0])
 
 		if err != nil {
 			w.WriteHeader(http.StatusNotFound)
-			result["detail"] = "Not found"
-			json.NewEncoder(w).Encode(result)
+			w.Write([]byte("Not found"))
 			return
 		}
 		w.Header().Set("Location", long)
@@ -54,8 +48,7 @@ func UrlHandler(w http.ResponseWriter, r *http.Request) {
 
 		if len(splitURL) > 0 {
 			w.WriteHeader(http.StatusBadRequest)
-			result["detail"] = "Bad request"
-			json.NewEncoder(w).Encode(result)
+			w.Write([]byte("Bad request"))
 			return
 		}
 
@@ -65,20 +58,16 @@ func UrlHandler(w http.ResponseWriter, r *http.Request) {
 
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			result["detail"] = "Bad request"
-			json.NewEncoder(w).Encode(result)
+			w.Write([]byte("Bad request"))
 			return
 		}
 
-		short := shortener.AddUrl(string(body))
+		short := shortener.AddURL(string(body))
 		w.WriteHeader(http.StatusCreated)
-		result["result"] = short
-		json.NewEncoder(w).Encode(result)
+		w.Write([]byte(short))
 
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		result["detail"] = "Method not allowed"
-		json.NewEncoder(w).Encode(result)
+		w.Write([]byte("Method not allowed"))
 	}
-
 }
