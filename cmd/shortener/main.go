@@ -7,11 +7,11 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/p7chkn/go-musthave-shortener-tpl/iternal/handlers"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/handlers"
 )
 
 func main() {
-	http.HandleFunc("/url", handlers.HelloWorld)
+	http.HandleFunc("/", handlers.UrlHandler)
 
 	server := &http.Server{
 		Addr: "localhost:8000",
