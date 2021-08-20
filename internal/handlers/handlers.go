@@ -64,7 +64,7 @@ func URLHandler(w http.ResponseWriter, r *http.Request) {
 
 		short := shortener.AddURL(string(body))
 		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte(short))
+		w.Write([]byte("localhost:8080/" + short))
 
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
