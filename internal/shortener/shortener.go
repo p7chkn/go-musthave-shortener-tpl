@@ -19,7 +19,7 @@ func AddURL(longURL string) string {
 func GetURL(shortURL string) (string, error) {
 	result := data.Get(shortURL)
 	if result == "" {
-		return "", errors.New("Not found")
+		return "", errors.New("not found")
 	}
 	return result, nil
 }
@@ -28,6 +28,6 @@ func shorterURL(longURL string) string {
 	splitURL := strings.Split(longURL, "://")
 	hasher := sha1.New()
 	hasher.Write([]byte(splitURL[1]))
-	url_hash := base64.URLEncoding.EncodeToString(hasher.Sum(nil))
-	return string(url_hash)
+	urlHash := base64.URLEncoding.EncodeToString(hasher.Sum(nil))
+	return string(urlHash)
 }
