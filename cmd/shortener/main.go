@@ -11,10 +11,10 @@ import (
 )
 
 func main() {
-	http.HandleFunc("/", handlers.UrlHandler)
+	http.HandleFunc("/", handlers.URLHandler)
 
 	server := &http.Server{
-		Addr: "localhost:8000",
+		Addr: "localhost:8080",
 	}
 
 	go func() {
