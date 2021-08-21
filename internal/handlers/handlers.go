@@ -1,73 +1,95 @@
 package handlers
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/shortener"
 )
 
-func URLHandler(w http.ResponseWriter, r *http.Request) {
-
-	w.Header().Set("Content-Type", "application/json")
-
-	f := func(c rune) bool {
-		return c == '/'
+func response(result map[string]string) []byte {
+	if len(result) == 0 {
+		return []byte{}
 	}
+	response, _ := json.Marshal(result)
+	return response
+}
 
-	splitURL := strings.FieldsFunc(r.URL.Path, f)
+func URLHandler(data url.Values) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 
-	if len(splitURL) > 1 {
-		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte("Page not found"))
-		return
-	}
+		result := map[string]string{}
 
-	switch r.Method {
-
-	case http.MethodGet:
-
-		if len(splitURL) < 1 {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("Bad request"))
-			return
+		returnResult := func() {
+			w.Write(response(result))
 		}
 
-		long, err := shortener.GetURL(splitURL[0])
+		defer returnResult()
 
-		if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+
+		f := func(c rune) bool {
+			return c == '/'
+		}
+
+		splitURL := strings.FieldsFunc(r.URL.Path, f)
+
+		if len(splitURL) > 1 {
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte("Not found"))
-			return
-		}
-		w.Header().Set("Location", long)
-		w.WriteHeader(http.StatusTemporaryRedirect)
-
-	case http.MethodPost:
-
-		if len(splitURL) > 0 {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("Bad request"))
+			result["detail"] = "Page not found"
 			return
 		}
 
-		defer r.Body.Close()
+		switch r.Method {
 
-		body, err := ioutil.ReadAll(r.Body)
+		case http.MethodGet:
 
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("Bad request"))
+			if len(splitURL) < 1 {
+				w.WriteHeader(http.StatusBadRequest)
+				result["detail"] = "Bad request"
+				return
+			}
+
+			long, err := shortener.GetURL(splitURL[0], data)
+
+			if err != nil {
+				w.WriteHeader(http.StatusNotFound)
+				result["detail"] = "Not found"
+				return
+			}
+			w.Header().Set("Location", long)
+			w.WriteHeader(http.StatusTemporaryRedirect)
+
+		case http.MethodPost:
+
+			if len(splitURL) > 0 {
+				w.WriteHeader(http.StatusBadRequest)
+				result["detail"] = "Bad request"
+				return
+			}
+
+			defer r.Body.Close()
+
+			body, err := ioutil.ReadAll(r.Body)
+
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				result["detail"] = "Bad request"
+				return
+			}
+
+			short := shortener.AddURL(string(body), data)
+			w.WriteHeader(http.StatusCreated)
+			w.Write([]byte("http://localhost:8080/" + short))
+			return
+
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			result["detail"] = "Method not allowed"
 			return
 		}
-
-		short := shortener.AddURL(string(body))
-		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte("http://localhost:8080/" + short))
-
-	default:
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		w.Write([]byte("Method not allowed"))
 	}
 }

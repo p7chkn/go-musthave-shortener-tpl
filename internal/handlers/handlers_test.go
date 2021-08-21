@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -31,7 +32,7 @@ func TestURLHandler(t *testing.T) {
 			body:   "",
 			want: want{
 				code:        400,
-				response:    "Bad request",
+				response:    `{"detail":"Bad request"}`,
 				contentType: "application/json",
 			},
 		},
@@ -53,7 +54,7 @@ func TestURLHandler(t *testing.T) {
 			body:   "http://iloverestaurant.ru/",
 			want: want{
 				code:        400,
-				response:    "Bad request",
+				response:    `{"detail":"Bad request"}`,
 				contentType: "application/json",
 			},
 		},
@@ -75,7 +76,7 @@ func TestURLHandler(t *testing.T) {
 			body:   "",
 			want: want{
 				code:        404,
-				response:    "Not found",
+				response:    `{"detail":"Not found"}`,
 				contentType: "application/json",
 			},
 		},
@@ -86,7 +87,7 @@ func TestURLHandler(t *testing.T) {
 			body:   "",
 			want: want{
 				code:        405,
-				response:    "Method not allowed",
+				response:    `{"detail":"Method not allowed"}`,
 				contentType: "application/json",
 			},
 		},
@@ -97,11 +98,13 @@ func TestURLHandler(t *testing.T) {
 			body:   "",
 			want: want{
 				code:        404,
-				response:    "Page not found",
+				response:    `{"detail":"Page not found"}`,
 				contentType: "application/json",
 			},
 		},
 	}
+
+	data := url.Values{}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -111,7 +114,7 @@ func TestURLHandler(t *testing.T) {
 
 			w := httptest.NewRecorder()
 
-			h := http.HandlerFunc(URLHandler)
+			h := http.HandlerFunc(URLHandler(data))
 
 			h.ServeHTTP(w, request)
 

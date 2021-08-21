@@ -8,15 +8,13 @@ import (
 	"strings"
 )
 
-var data = url.Values{}
-
-func AddURL(longURL string) string {
+func AddURL(longURL string, data url.Values) string {
 	shortURL := shorterURL(longURL)
 	data.Set(shortURL, longURL)
 	return shortURL
 }
 
-func GetURL(shortURL string) (string, error) {
+func GetURL(shortURL string, data url.Values) (string, error) {
 	result := data.Get(shortURL)
 	if result == "" {
 		return "", errors.New("not found")

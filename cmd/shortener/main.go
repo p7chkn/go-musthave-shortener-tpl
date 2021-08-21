@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 
@@ -11,7 +12,9 @@ import (
 )
 
 func main() {
-	http.HandleFunc("/", handlers.URLHandler)
+	data := url.Values{}
+
+	http.HandleFunc("/", handlers.URLHandler(data))
 
 	server := &http.Server{
 		Addr: "localhost:8080",
