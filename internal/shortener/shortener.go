@@ -25,7 +25,11 @@ func GetURL(shortURL string, data url.Values) (string, error) {
 func shorterURL(longURL string) string {
 	splitURL := strings.Split(longURL, "://")
 	hasher := sha1.New()
-	hasher.Write([]byte(splitURL[1]))
+	if len(splitURL) < 2 {
+		hasher.Write([]byte(longURL))
+	} else {
+		hasher.Write([]byte(splitURL[1]))
+	}
 	urlHash := base64.URLEncoding.EncodeToString(hasher.Sum(nil))
 	return string(urlHash)
 }
