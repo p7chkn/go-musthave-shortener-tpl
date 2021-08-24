@@ -24,35 +24,35 @@ func (repo *RepositoryMap) SetupValues() {
 	repo.values = make(map[string]string)
 }
 
-func (repo *RepositoryMap) AddUrl(longURL string) string {
+func (repo *RepositoryMap) AddURL(longURL string) string {
 	shortURL := shortener.ShorterURL(longURL)
 	repo.values[shortURL] = longURL
 	return shortURL
 }
 
-func (repo *RepositoryMap) GetUrl(shortURL string) (string, error) {
-	resultUrl, okey := repo.values[shortURL]
+func (repo *RepositoryMap) GetURL(shortURL string) (string, error) {
+	resultURL, okey := repo.values[shortURL]
 	if !okey {
 		return "", errors.New("not found")
 	}
-	return resultUrl, nil
+	return resultURL, nil
 }
 
 type RepositoryInterface interface {
-	AddUrl(longURL string) string
-	GetUrl(shortURL string) (string, error)
+	AddURL(longURL string) string
+	GetURL(shortURL string) (string, error)
 }
 
 type RepositoryMock struct {
 	mock.Mock
 }
 
-func (m *RepositoryMock) AddUrl(longURL string) string {
+func (m *RepositoryMock) AddURL(longURL string) string {
 	args := m.Called(longURL)
 	return args.String(0)
 }
 
-func (m *RepositoryMock) GetUrl(shortURL string) (string, error) {
+func (m *RepositoryMock) GetURL(shortURL string) (string, error) {
 	args := m.Called(shortURL)
 	return args.String(0), args.Error(1)
 }

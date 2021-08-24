@@ -18,7 +18,7 @@ func (h *Handler) SetupRepository(repo models.RepositoryInterface) {
 
 func (h *Handler) RetriveShortURL(c *gin.Context) {
 	result := map[string]string{}
-	long, err := h.repo.GetUrl(c.Param("id"))
+	long, err := h.repo.GetURL(c.Param("id"))
 
 	if err != nil {
 		result["detail"] = err.Error()
@@ -41,6 +41,6 @@ func (h *Handler) CreateShortURL(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, result)
 		return
 	}
-	short := h.repo.AddUrl(string(body))
+	short := h.repo.AddURL(string(body))
 	c.String(http.StatusCreated, "http://localhost:8080/"+short)
 }

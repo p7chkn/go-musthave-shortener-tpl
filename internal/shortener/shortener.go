@@ -3,24 +3,8 @@ package shortener
 import (
 	"crypto/sha1"
 	"encoding/base64"
-	"errors"
-	"net/url"
 	"strings"
 )
-
-func AddURL(longURL string, data url.Values) string {
-	shortURL := ShorterURL(longURL)
-	data.Set(shortURL, longURL)
-	return shortURL
-}
-
-func GetURL(shortURL string, data url.Values) (string, error) {
-	result := data.Get(shortURL)
-	if result == "" {
-		return "", errors.New("not found")
-	}
-	return result, nil
-}
 
 func ShorterURL(longURL string) string {
 	splitURL := strings.Split(longURL, "://")
