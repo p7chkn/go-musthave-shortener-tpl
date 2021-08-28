@@ -1,22 +1,30 @@
 package handlers
 
 import (
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/models"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/models/mocks"
 	"github.com/stretchr/testify/assert"
 )
 
-func setupRuter(data url.Values) *gin.Engine {
-	r := gin.Default()
-	r.GET("/:id", RetriveShortURL(data))
-	r.POST("/", CreateShortURL(data))
-	return r
+func setupRouter(repo models.RepositoryInterface) *gin.Engine {
+	router := gin.Default()
+
+	handler := New(repo)
+
+	router.GET("/:id", handler.RetriveShortURL)
+	router.POST("/", handler.CreateShortURL)
+
+	router.HandleMethodNotAllowed = true
+
+	return router
 }
 
 func TestRetriveShortURL(t *testing.T) {
@@ -27,28 +35,28 @@ func TestRetriveShortURL(t *testing.T) {
 	}
 
 	tests := []struct {
-		name     string
-		query    string
-		longURL  string
-		shortURL string
-		want     want
+		name   string
+		query  string
+		err    error
+		result string
+		want   want
 	}{
 		{
-			name:     "GET without id",
-			query:    "",
-			longURL:  "",
-			shortURL: "",
+			name:   "GET without id",
+			query:  "",
+			result: "",
+			err:    errors.New("not found"),
 			want: want{
-				code:        404,
-				response:    `404 page not found`,
+				code:        405,
+				response:    `405 method not allowed`,
 				contentType: `text/plain`,
 			},
 		},
 		{
-			name:     "GET with correct id",
-			query:    "98fv58Wr3hGGIzm2-aH2zA628Ng=",
-			longURL:  "http://iloverestaurant.ru/",
-			shortURL: "98fv58Wr3hGGIzm2-aH2zA628Ng=",
+			name:   "GET with correct id",
+			query:  "98fv58Wr3hGGIzm2-aH2zA628Ng=",
+			result: "98fv58Wr3hGGIzm2-aH2zA628Ng=",
+			err:    nil,
 			want: want{
 				code:        307,
 				response:    ``,
@@ -56,10 +64,10 @@ func TestRetriveShortURL(t *testing.T) {
 			},
 		},
 		{
-			name:     "GET with incorrect id",
-			query:    "12398fv58Wr3hGGIzm2-aH2zA628Ng=",
-			longURL:  "http://iloverestaurant.ru/",
-			shortURL: "98fv58Wr3hGGIzm2-aH2zA628Ng=",
+			name:   "GET with incorrect id",
+			query:  "12398fv58Wr3hGGIzm2-aH2zA628Ng=",
+			result: "",
+			err:    errors.New("not found"),
 			want: want{
 				code:        404,
 				response:    `{"detail":"not found"}`,
@@ -67,13 +75,13 @@ func TestRetriveShortURL(t *testing.T) {
 			},
 		},
 	}
-	data := url.Values{}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			data.Set(tt.shortURL, tt.longURL)
+			repoMock := new(mocks.RepositoryInterface)
+			repoMock.On("GetURL", tt.query).Return(tt.result, tt.err)
 
-			router := setupRuter(data)
+			router := setupRouter(repoMock)
 
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest(http.MethodGet, "/"+tt.query, nil)
@@ -104,15 +112,17 @@ func TestCreateShortURL(t *testing.T) {
 	}
 
 	tests := []struct {
-		name  string
-		query string
-		body  string
-		want  want
+		name   string
+		query  string
+		body   string
+		result string
+		want   want
 	}{
 		{
-			name:  "correct POST",
-			query: "",
-			body:  "http://iloverestaurant.ru/",
+			name:   "correct POST",
+			query:  "",
+			body:   "http://iloverestaurant.ru/",
+			result: "98fv58Wr3hGGIzm2-aH2zA628Ng=",
 			want: want{
 				code:        201,
 				response:    `http://localhost:8080/98fv58Wr3hGGIzm2-aH2zA628Ng=`,
@@ -120,22 +130,26 @@ func TestCreateShortURL(t *testing.T) {
 			},
 		},
 		{
-			name:  "incorrect POST",
-			query: "123",
+			name:   "incorrect POST",
+			query:  "123",
+			body:   "http://iloverestaurant.ru/",
+			result: "",
 			want: want{
-				code:        404,
-				response:    `404 page not found`,
+				code:        405,
+				response:    `405 method not allowed`,
 				contentType: `text/plain`,
 			},
 		},
 	}
-	data := url.Values{}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			router := setupRuter(data)
-			body := strings.NewReader(tt.body)
+			repoMock := new(mocks.RepositoryInterface)
+			repoMock.On("AddURL", tt.body).Return(tt.result, nil)
 
+			router := setupRouter(repoMock)
+
+			body := strings.NewReader(tt.body)
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest(http.MethodPost, "/"+tt.query, body)
 			router.ServeHTTP(w, req)
