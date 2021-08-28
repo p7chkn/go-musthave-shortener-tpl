@@ -38,6 +38,7 @@ func (repo *RepositoryMap) GetURL(shortURL string) (string, error) {
 	return resultURL, nil
 }
 
+//go:generate mockery -name=RepositoryInterface
 type RepositoryInterface interface {
 	AddURL(longURL string) string
 	GetURL(shortURL string) (string, error)

@@ -10,23 +10,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/models"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/models/mocks"
 	"github.com/stretchr/testify/assert"
 )
-
-func (h *Handler) setupMock() {
-	var respositoryInterface models.RepositoryInterface
-
-	dataMap := new(models.RepositoryMap)
-	dataMap.SetupValues()
-	respositoryInterface = dataMap
-	h.repo = respositoryInterface
-}
 
 func setupRouter(repo models.RepositoryInterface) *gin.Engine {
 	router := gin.Default()
 
-	handler := new(Handler)
-	handler.SetupRepository(repo)
+	handler := New(repo)
 
 	router.GET("/:id", handler.RetriveShortURL)
 	router.POST("/", handler.CreateShortURL)
@@ -87,7 +78,7 @@ func TestRetriveShortURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			repoMock := new(models.RepositoryMock)
+			repoMock := new(mocks.RepositoryInterface)
 			repoMock.On("GetURL", tt.query).Return(tt.result, tt.err)
 
 			router := setupRouter(repoMock)
@@ -153,7 +144,7 @@ func TestCreateShortURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			repoMock := new(models.RepositoryMock)
+			repoMock := new(mocks.RepositoryInterface)
 			repoMock.On("AddURL", tt.body).Return(tt.result, nil)
 
 			router := setupRouter(repoMock)

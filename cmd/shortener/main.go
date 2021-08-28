@@ -15,8 +15,7 @@ import (
 func setupRouter(repo models.RepositoryInterface) *gin.Engine {
 	router := gin.Default()
 
-	handler := new(handlers.Handler)
-	handler.SetupRepository(repo)
+	handler := handlers.New(repo)
 
 	router.GET("/:id", handler.RetriveShortURL)
 	router.POST("/", handler.CreateShortURL)

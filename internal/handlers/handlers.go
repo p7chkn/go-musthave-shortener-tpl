@@ -12,8 +12,10 @@ type Handler struct {
 	repo models.RepositoryInterface
 }
 
-func (h *Handler) SetupRepository(repo models.RepositoryInterface) {
-	h.repo = repo
+func New(repo models.RepositoryInterface) *Handler {
+	return &Handler{
+		repo: repo,
+	}
 }
 
 func (h *Handler) RetriveShortURL(c *gin.Context) {
