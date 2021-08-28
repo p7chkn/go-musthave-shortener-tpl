@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/shortener"
-	"github.com/stretchr/testify/mock"
 )
 
 func SetupRepository() RepositoryInterface {
@@ -42,18 +41,4 @@ func (repo *RepositoryMap) GetURL(shortURL string) (string, error) {
 type RepositoryInterface interface {
 	AddURL(longURL string) string
 	GetURL(shortURL string) (string, error)
-}
-
-type RepositoryMock struct {
-	mock.Mock
-}
-
-func (m *RepositoryMock) AddURL(longURL string) string {
-	args := m.Called(longURL)
-	return args.String(0)
-}
-
-func (m *RepositoryMock) GetURL(shortURL string) (string, error) {
-	args := m.Called(shortURL)
-	return args.String(0), args.Error(1)
 }
