@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
 
@@ -9,7 +10,7 @@ import (
 )
 
 type PostURL struct {
-	Url string `json: "url"`
+	URL string
 }
 
 type Handler struct {
@@ -54,13 +55,34 @@ func (h *Handler) CreateShortURL(c *gin.Context) {
 func (h *Handler) ShortenURL(c *gin.Context) {
 	result := map[string]string{}
 	var url PostURL
-	err := c.BindJSON(&url)
-	if err != nil || url.Url == "" {
+
+	defer c.Request.Body.Close()
+
+	body, err := ioutil.ReadAll(c.Request.Body)
+
+	if err != nil {
 		result["detail"] = "Bad request"
 		c.IndentedJSON(http.StatusBadRequest, result)
 		return
 	}
-	short := h.repo.AddURL(url.Url)
+	json.Unmarshal(body, &url)
+	if url.URL == "" {
+		result["detail"] = "Bad request"
+		c.IndentedJSON(http.StatusBadRequest, result)
+		return
+	}
+
+	short := h.repo.AddURL(url.URL)
 	result["result"] = "http://localhost:8080/" + short
 	c.IndentedJSON(http.StatusCreated, result)
+
+	// err := c.BindJSON(&url)
+	// if err != nil || url.URL == "" {
+	// 	result["detail"] = "Bad request"
+	// 	c.IndentedJSON(http.StatusBadRequest, result)
+	// 	return
+	// }
+	// short := h.repo.AddURL(url.URL)
+	// result["result"] = "http://localhost:8080/" + short
+	// c.IndentedJSON(http.StatusCreated, result)
 }
