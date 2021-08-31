@@ -19,6 +19,7 @@ func setupRouter(repo models.RepositoryInterface) *gin.Engine {
 
 	router.GET("/:id", handler.RetriveShortURL)
 	router.POST("/", handler.CreateShortURL)
+	router.POST("/api/shorten", handler.ShortenURL)
 
 	router.HandleMethodNotAllowed = true
 

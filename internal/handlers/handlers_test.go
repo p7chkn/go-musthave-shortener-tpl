@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -21,6 +22,7 @@ func setupRouter(repo models.RepositoryInterface) *gin.Engine {
 
 	router.GET("/:id", handler.RetriveShortURL)
 	router.POST("/", handler.CreateShortURL)
+	router.POST("/api/shorten", handler.ShortenURL)
 
 	router.HandleMethodNotAllowed = true
 
@@ -155,6 +157,77 @@ func TestCreateShortURL(t *testing.T) {
 			router.ServeHTTP(w, req)
 
 			assert.Equal(t, w.Header()["Content-Type"][0], tt.want.contentType)
+
+			assert.Equal(t, tt.want.code, w.Code)
+			resBody, err := ioutil.ReadAll(w.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if w.Header()["Content-Type"][0] == `application/json; charset=utf-8` {
+				assert.JSONEq(t, tt.want.response, string(resBody))
+			} else {
+				assert.Equal(t, tt.want.response, string(resBody))
+			}
+
+		})
+	}
+}
+
+func TestShortenURL(t *testing.T) {
+	type want struct {
+		code        int
+		response    string
+		contentType string
+	}
+
+	tests := []struct {
+		name    string
+		query   string
+		body    string
+		rawData string
+		result  string
+		want    want
+	}{
+		{
+			name:    "correct POST",
+			query:   "api/shorten",
+			body:    `{"url": "http://iloverestaurant.ru/"}`,
+			rawData: "http://iloverestaurant.ru/",
+			result:  "98fv58Wr3hGGIzm2-aH2zA628Ng=",
+			want: want{
+				code:        201,
+				response:    `{"result": "http://localhost:8080/98fv58Wr3hGGIzm2-aH2zA628Ng="}`,
+				contentType: `application/json; charset=utf-8`,
+			},
+		},
+		{
+			name:    "incorrect POST",
+			query:   "api/shorten",
+			body:    `{"url2": "http://iloverestaurant.ru/"}`,
+			rawData: "http://iloverestaurant.ru/",
+			result:  "98fv58Wr3hGGIzm2-aH2zA628Ng=",
+			want: want{
+				code:        400,
+				response:    `{"detail": "Bad request"}`,
+				contentType: `application/json; charset=utf-8`,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			repoMock := new(mocks.RepositoryInterface)
+			repoMock.On("AddURL", tt.rawData).Return(tt.result, nil)
+
+			router := setupRouter(repoMock)
+
+			body := strings.NewReader(tt.body)
+			w := httptest.NewRecorder()
+			fmt.Println(tt.query)
+			req, _ := http.NewRequest(http.MethodPost, "/"+tt.query, body)
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.want.contentType, w.Header()["Content-Type"][0])
 
 			assert.Equal(t, tt.want.code, w.Code)
 			resBody, err := ioutil.ReadAll(w.Body)
