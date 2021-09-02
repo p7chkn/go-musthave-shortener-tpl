@@ -1,7 +1,6 @@
 package configuration
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/caarlos0/env"
@@ -26,7 +25,7 @@ func New() *Config {
 	}
 
 	if cfg.BaseURL == "" {
-		cfg.BaseURL = fmt.Sprintf("http://%s/", cfg.ServerAdress)
+		cfg.BaseURL = "http://localhost:8080/"
 	}
 
 	return &cfg
