@@ -34,7 +34,7 @@ func main() {
 	handler := setupRouter(models.SetupRepository(), cfg.BaseURL)
 
 	server := &http.Server{
-		Addr:    cfg.ServerAdress,
+		Addr:    "localhost:8080",
 		Handler: handler,
 	}
 
