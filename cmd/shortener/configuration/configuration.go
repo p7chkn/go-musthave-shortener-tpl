@@ -13,7 +13,10 @@ type Config struct {
 }
 
 func New() *Config {
-	var cfg Config
+	cfg := Config{
+		ServerAdress: "localhost:8080",
+	}
+	cfg.BaseURL = fmt.Sprintf("http://%s/", cfg.ServerAdress)
 
 	err := env.Parse(&cfg)
 
@@ -21,13 +24,6 @@ func New() *Config {
 		log.Fatal(err)
 	}
 
-	if cfg.ServerAdress == "" {
-		cfg.ServerAdress = "localhost:8080"
-	}
-
-	if cfg.BaseURL == "" {
-		cfg.BaseURL = fmt.Sprintf("http://%s/", cfg.ServerAdress)
-	}
 	if string(cfg.BaseURL[len(cfg.BaseURL)-1]) != "/" {
 		cfg.BaseURL += "/"
 	}
