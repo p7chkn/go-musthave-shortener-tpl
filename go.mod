@@ -3,6 +3,7 @@ module github.com/p7chkn/go-musthave-shortener-tpl
 go 1.16
 
 require (
+	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/gin-gonic/gin v1.7.4
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/json-iterator/go v1.1.11 // indirect

@@ -8,14 +8,15 @@ import (
 	"os/signal"
 
 	"github.com/gin-gonic/gin"
+	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/configuration"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/handlers"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/models"
 )
 
-func setupRouter(repo models.RepositoryInterface) *gin.Engine {
+func setupRouter(repo models.RepositoryInterface, baseURL string) *gin.Engine {
 	router := gin.Default()
 
-	handler := handlers.New(repo)
+	handler := handlers.New(repo, baseURL)
 
 	router.GET("/:id", handler.RetriveShortURL)
 	router.POST("/", handler.CreateShortURL)
@@ -27,10 +28,13 @@ func setupRouter(repo models.RepositoryInterface) *gin.Engine {
 }
 
 func main() {
-	handler := setupRouter(models.SetupRepository())
+
+	cfg := configuration.New()
+
+	handler := setupRouter(models.SetupRepository(), cfg.BaseURL)
 
 	server := &http.Server{
-		Addr:    "localhost:8080",
+		Addr:    cfg.ServerAdress,
 		Handler: handler,
 	}
 

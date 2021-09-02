@@ -14,12 +14,14 @@ type PostURL struct {
 }
 
 type Handler struct {
-	repo models.RepositoryInterface
+	repo    models.RepositoryInterface
+	baseURL string
 }
 
-func New(repo models.RepositoryInterface) *Handler {
+func New(repo models.RepositoryInterface, baseURL string) *Handler {
 	return &Handler{
-		repo: repo,
+		repo:    repo,
+		baseURL: baseURL,
 	}
 }
 
@@ -49,7 +51,7 @@ func (h *Handler) CreateShortURL(c *gin.Context) {
 		return
 	}
 	short := h.repo.AddURL(string(body))
-	c.String(http.StatusCreated, "http://localhost:8080/"+short)
+	c.String(http.StatusCreated, h.baseURL+short)
 }
 
 func (h *Handler) ShortenURL(c *gin.Context) {
@@ -73,7 +75,7 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 	}
 
 	short := h.repo.AddURL(url.URL)
-	result["result"] = "http://localhost:8080/" + short
+	result["result"] = h.baseURL + short
 	c.IndentedJSON(http.StatusCreated, result)
 
 	// err := c.BindJSON(&url)
