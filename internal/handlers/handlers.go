@@ -43,6 +43,7 @@ func (h *Handler) CreateShortURL(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, result)
 		return
 	}
+
 	short := h.repo.AddURL(string(body))
 	c.String(http.StatusCreated, "http://localhost:8080/"+short)
 }
