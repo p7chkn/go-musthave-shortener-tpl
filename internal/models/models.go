@@ -25,15 +25,15 @@ func NewRepositoryMap(filePath string) *RepositoryMap {
 
 		fmt.Printf("--------------------------- %v\n", filepath.Dir(filePath))
 		fmt.Printf("--------------------------- %v\n", path+filepath.Dir(filePath))
-		if _, err := os.Stat(path + filepath.Dir(filePath)); os.IsNotExist(err) {
+		if _, err := os.Stat(filepath.Dir(filePath)); os.IsNotExist(err) {
 			fmt.Println("Creating folder")
-			err := os.Mkdir(path+filepath.Dir(filePath), files.FilePerm)
+			err := os.Mkdir(filepath.Dir(filePath), files.FilePerm)
 			if err != nil {
 				fmt.Printf("Error: %v \n", err)
 			}
 		}
 	}
-	file, err := os.OpenFile(path+"/"+filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, files.FilePerm)
+	file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, files.FilePerm)
 
 	if err != nil {
 		fmt.Printf("Error: %v \n", err)
