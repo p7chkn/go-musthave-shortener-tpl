@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/caarlos0/env"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/files"
 )
 
 type Config struct {
@@ -27,6 +28,10 @@ func New() *Config {
 
 	if string(cfg.BaseURL[len(cfg.BaseURL)-1]) != "/" {
 		cfg.BaseURL += "/"
+	}
+
+	if cfg.FilePath == "" {
+		cfg.FilePath = files.FileName
 	}
 
 	return &cfg
