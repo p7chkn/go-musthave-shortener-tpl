@@ -3,6 +3,7 @@ package models
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -20,11 +21,9 @@ type RepositoryMap struct {
 }
 
 func NewRepositoryMap(filePath string) *RepositoryMap {
-	path, _ := os.Getwd()
-	if filePath != files.FileName {
+	values := make(map[string]string)
 
-		fmt.Printf("--------------------------- %v\n", filepath.Dir(filePath))
-		fmt.Printf("--------------------------- %v\n", path+filepath.Dir(filePath))
+	if filePath != files.FileName {
 		if _, err := os.Stat(filepath.Dir(filePath)); os.IsNotExist(err) {
 			fmt.Println("Creating folder")
 			err := os.Mkdir(filepath.Dir(filePath), files.FilePerm)
@@ -33,21 +32,39 @@ func NewRepositoryMap(filePath string) *RepositoryMap {
 			}
 		}
 	}
-	file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, files.FilePerm)
+	reader := files.NewFileReader(filePath)
 
-	if err != nil {
-		fmt.Printf("Error: %v \n", err)
+	defer reader.Close()
+	for {
+		data, err := reader.ReadRow()
+
+		if err != nil {
+			log.Printf("Error while parsing file: %v\n", err)
+		}
+
+		if data == nil {
+			break
+		}
+		values[data.ShortURL] = data.LongURL
 	}
 
-	defer file.Close()
 	return &RepositoryMap{
-		values:   make(map[string]string),
+		values:   values,
 		filePath: filePath,
 	}
 }
 
 func (repo *RepositoryMap) AddURL(longURL string) string {
 	shortURL := shortener.ShorterURL(longURL)
+	data := files.Row{
+		LongURL:  longURL,
+		ShortURL: shortURL,
+	}
+	writer := files.NewFileWriter(repo.filePath)
+	defer writer.Close()
+
+	writer.WriteRow(&data)
+
 	repo.values[shortURL] = longURL
 	return shortURL
 }
