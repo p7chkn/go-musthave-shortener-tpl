@@ -2,25 +2,38 @@ package models
 
 import (
 	"errors"
+	"fmt"
+	"os"
 
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/files"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/shortener"
 )
 
-func SetupRepository() RepositoryInterface {
-	var respoInterface RepositoryInterface
-
-	dataMap := new(RepositoryMap)
-	dataMap.SetupValues()
-	respoInterface = dataMap
-	return respoInterface
+func NewRepository(filePath string) RepositoryInterface {
+	return RepositoryInterface(NewRepositoryMap(filePath))
 }
 
 type RepositoryMap struct {
-	values map[string]string
+	values   map[string]string
+	filePath string
 }
 
-func (repo *RepositoryMap) SetupValues() {
-	repo.values = make(map[string]string)
+func NewRepositoryMap(filePath string) *RepositoryMap {
+	if filePath != "" {
+		path, _ := os.Getwd()
+		fmt.Printf("--------------------------- %v\n", path+filePath)
+		if _, err := os.Stat(path + filePath); os.IsNotExist(err) {
+			fmt.Println("Creating folder")
+			err := os.MkdirAll(filePath, files.FilePerm)
+			if err != nil {
+				fmt.Printf("Error: %v \n", err)
+			}
+		}
+	}
+	return &RepositoryMap{
+		values:   make(map[string]string),
+		filePath: filePath,
+	}
 }
 
 func (repo *RepositoryMap) AddURL(longURL string) string {

@@ -10,6 +10,7 @@ import (
 type Config struct {
 	ServerAdress string `env:"SERVER_ADDRESS"`
 	BaseURL      string `env:"BASE_URL"`
+	FilePath     string `env:"FILE_STORAGE_PATH"`
 }
 
 func New() *Config {

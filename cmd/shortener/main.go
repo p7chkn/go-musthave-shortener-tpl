@@ -31,7 +31,7 @@ func main() {
 
 	cfg := configuration.New()
 
-	handler := setupRouter(models.SetupRepository(), cfg.BaseURL)
+	handler := setupRouter(models.NewRepository(cfg.FilePath), cfg.BaseURL)
 
 	server := &http.Server{
 		Addr:    cfg.ServerAdress,
