@@ -33,7 +33,7 @@ func NewRepositoryMap(filePath string) *RepositoryMap {
 			}
 		}
 	}
-	file, err := os.OpenFile(path+filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, files.FilePerm)
+	file, err := os.OpenFile(path+"/"+filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, files.FilePerm)
 
 	if err != nil {
 		fmt.Printf("Error: %v \n", err)
