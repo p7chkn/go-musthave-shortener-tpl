@@ -24,9 +24,9 @@ func NewRepositoryMap(filePath string) *RepositoryMap {
 		path, _ := os.Getwd()
 		fmt.Printf("--------------------------- %v\n", filepath.Dir(filePath))
 		fmt.Printf("--------------------------- %v\n", path+filepath.Dir(filePath))
-		if _, err := os.Stat(path + filepath.Dir(filePath)); os.IsNotExist(err) {
+		if _, err := os.Stat(filepath.Dir(filePath)); os.IsNotExist(err) {
 			fmt.Println("Creating folder")
-			err := os.MkdirAll(path+filepath.Dir(filePath), files.FilePerm)
+			err := os.MkdirAll(filepath.Dir(filePath), files.FilePerm)
 			if err != nil {
 				fmt.Printf("Error: %v \n", err)
 			}
