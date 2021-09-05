@@ -53,7 +53,7 @@ func newConfig() *config {
 	if *flagBaseURL != BaseURL {
 		cfg.BaseURL = *flagBaseURL
 	}
-	if *flagFilePath != ServerAdress {
+	if *flagFilePath != FileName {
 		cfg.FilePath = *flagFilePath
 	}
 
