@@ -22,6 +22,10 @@ type RepositoryMap struct {
 
 func NewRepositoryMap(filePath string) *RepositoryMap {
 	values := make(map[string]string)
+	repo := RepositoryMap{
+		values:   values,
+		filePath: filePath,
+	}
 	file, err := os.OpenFile(filePath, os.O_RDONLY|os.O_CREATE, configuration.FilePerm)
 	if err != nil {
 		log.Printf("Error with reading file: %v\n", err)
@@ -30,28 +34,24 @@ func NewRepositoryMap(filePath string) *RepositoryMap {
 	reader := bufio.NewScanner(file)
 
 	for {
-		data, err := readRow(reader)
+		ok, err := repo.readRow(reader)
 
 		if err != nil {
 			log.Printf("Error while parsing file: %v\n", err)
 		}
 
-		if data == nil {
+		if !ok {
 			break
 		}
-		values[data.ShortURL] = data.LongURL
 	}
 
-	return &RepositoryMap{
-		values:   values,
-		filePath: filePath,
-	}
+	return &repo
 }
 
 func (repo *RepositoryMap) AddURL(longURL string) string {
 	shortURL := shortener.ShorterURL(longURL)
 	repo.values[shortURL] = longURL
-	writeRow(longURL, shortURL, repo.filePath)
+	repo.writeRow(longURL, shortURL, repo.filePath)
 	return shortURL
 }
 
@@ -68,10 +68,10 @@ type row struct {
 	LongURL  string `json:"long_url"`
 }
 
-func readRow(reader *bufio.Scanner) (*row, error) {
+func (repo *RepositoryMap) readRow(reader *bufio.Scanner) (bool, error) {
 
 	if !reader.Scan() {
-		return nil, reader.Err()
+		return false, reader.Err()
 	}
 	data := reader.Bytes()
 
@@ -80,14 +80,15 @@ func readRow(reader *bufio.Scanner) (*row, error) {
 	err := json.Unmarshal(data, row)
 
 	if err != nil {
-		return nil, err
+		return false, err
 	}
+	repo.values[row.ShortURL] = row.LongURL
 
-	return row, nil
+	return true, nil
 }
 
-func writeRow(longURL string, shortURL string, filePath string) error {
-	file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, configuration.FilePerm)
+func (repo *RepositoryMap) writeRow(longURL string, shortURL string, filePath string) error {
+	file, err := os.OpenFile(repo.filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, configuration.FilePerm)
 
 	if err != nil {
 		return err
