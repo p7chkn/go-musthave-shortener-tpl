@@ -17,19 +17,13 @@ const (
 	BaseURL      = "http://localhost:8080/"
 )
 
-var Configuration config
-
-func init() {
-	Configuration = *newConfig()
-}
-
 type config struct {
 	ServerAdress string `env:"SERVER_ADDRESS"`
 	BaseURL      string `env:"BASE_URL"`
 	FilePath     string `env:"FILE_STORAGE_PATH"`
 }
 
-func newConfig() *config {
+func New() *config {
 	cfg := config{
 		ServerAdress: ServerAdress,
 		FilePath:     FileName,
