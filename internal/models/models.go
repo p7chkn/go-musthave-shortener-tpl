@@ -2,37 +2,24 @@ package models
 
 import (
 	"errors"
-	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/files"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/shortener"
 )
 
-func NewRepository(filePath string) RepositoryInterface {
-	return RepositoryInterface(NewRepositoryMap(filePath))
+func NewRepository() RepositoryInterface {
+	return RepositoryInterface(NewRepositoryMap())
 }
 
 type RepositoryMap struct {
-	values   map[string]string
-	filePath string
+	values map[string]string
 }
 
-func NewRepositoryMap(filePath string) *RepositoryMap {
+func NewRepositoryMap() *RepositoryMap {
 	values := make(map[string]string)
 
-	if filePath != files.FileName {
-		if _, err := os.Stat(filepath.Dir(filePath)); os.IsNotExist(err) {
-			fmt.Println("Creating folder")
-			err := os.Mkdir(filepath.Dir(filePath), files.FilePerm)
-			if err != nil {
-				fmt.Printf("Error: %v \n", err)
-			}
-		}
-	}
-	reader := files.NewFileReader(filePath)
+	reader := files.NewFileReader()
 
 	defer reader.Close()
 	for {
@@ -49,8 +36,7 @@ func NewRepositoryMap(filePath string) *RepositoryMap {
 	}
 
 	return &RepositoryMap{
-		values:   values,
-		filePath: filePath,
+		values: values,
 	}
 }
 
@@ -60,7 +46,7 @@ func (repo *RepositoryMap) AddURL(longURL string) string {
 		LongURL:  longURL,
 		ShortURL: shortURL,
 	}
-	writer := files.NewFileWriter(repo.filePath)
+	writer := files.NewFileWriter()
 	defer writer.Close()
 
 	writer.WriteRow(&data)

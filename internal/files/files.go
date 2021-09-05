@@ -4,11 +4,8 @@ import (
 	"bufio"
 	"encoding/json"
 	"os"
-)
 
-const (
-	FileName = "urls.log"
-	FilePerm = 0755
+	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/configuration"
 )
 
 type Row struct {
@@ -16,13 +13,13 @@ type Row struct {
 	LongURL  string `json:"long_url"`
 }
 
-func NewFileWriter(fileName string) WriterInterface {
-	writer, _ := NewWriter(fileName)
+func NewFileWriter() WriterInterface {
+	writer, _ := newWriter(configuration.Configuration.FilePath)
 	return WriterInterface(writer)
 }
 
-func NewFileReader(fileName string) ReaderInterface {
-	reader, _ := NewReader(fileName)
+func NewFileReader() ReaderInterface {
+	reader, _ := newReader(configuration.Configuration.FilePath)
 	return ReaderInterface(reader)
 }
 
@@ -46,7 +43,7 @@ type reader struct {
 	scanner *bufio.Scanner
 }
 
-func NewWriter(fileName string) (*writer, error) {
+func newWriter(fileName string) (*writer, error) {
 	file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0777)
 	if err != nil {
 		return nil, err
@@ -58,7 +55,7 @@ func NewWriter(fileName string) (*writer, error) {
 	}, nil
 }
 
-func NewReader(fileName string) (*reader, error) {
+func newReader(fileName string) (*reader, error) {
 	file, err := os.OpenFile(fileName, os.O_RDONLY|os.O_CREATE, 0777)
 	if err != nil {
 		return nil, err

@@ -29,12 +29,10 @@ func setupRouter(repo models.RepositoryInterface, baseURL string) *gin.Engine {
 
 func main() {
 
-	cfg := configuration.New()
-
-	handler := setupRouter(models.NewRepository(cfg.FilePath), cfg.BaseURL)
+	handler := setupRouter(models.NewRepository(), configuration.Configuration.BaseURL)
 
 	server := &http.Server{
-		Addr:    cfg.ServerAdress,
+		Addr:    configuration.Configuration.ServerAdress,
 		Handler: handler,
 	}
 
