@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
 
@@ -8,13 +9,19 @@ import (
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/models"
 )
 
-type Handler struct {
-	repo models.RepositoryInterface
+type PostURL struct {
+	URL string
 }
 
-func New(repo models.RepositoryInterface) *Handler {
+type Handler struct {
+	repo    models.RepositoryInterface
+	baseURL string
+}
+
+func New(repo models.RepositoryInterface, baseURL string) *Handler {
 	return &Handler{
-		repo: repo,
+		repo:    repo,
+		baseURL: baseURL,
 	}
 }
 
@@ -45,5 +52,40 @@ func (h *Handler) CreateShortURL(c *gin.Context) {
 	}
 
 	short := h.repo.AddURL(string(body))
-	c.String(http.StatusCreated, "http://localhost:8080/"+short)
+	c.String(http.StatusCreated, h.baseURL+short)
+}
+
+func (h *Handler) ShortenURL(c *gin.Context) {
+	result := map[string]string{}
+	var url PostURL
+
+	defer c.Request.Body.Close()
+
+	body, err := ioutil.ReadAll(c.Request.Body)
+
+	if err != nil {
+		result["detail"] = "Bad request"
+		c.IndentedJSON(http.StatusBadRequest, result)
+		return
+	}
+	json.Unmarshal(body, &url)
+	if url.URL == "" {
+		result["detail"] = "Bad request"
+		c.IndentedJSON(http.StatusBadRequest, result)
+		return
+	}
+
+	short := h.repo.AddURL(url.URL)
+	result["result"] = h.baseURL + short
+	c.IndentedJSON(http.StatusCreated, result)
+
+	// err := c.BindJSON(&url)
+	// if err != nil || url.URL == "" {
+	// 	result["detail"] = "Bad request"
+	// 	c.IndentedJSON(http.StatusBadRequest, result)
+	// 	return
+	// }
+	// short := h.repo.AddURL(url.URL)
+	// result["result"] = "http://localhost:8080/" + short
+	// c.IndentedJSON(http.StatusCreated, result)
 }
