@@ -84,8 +84,7 @@ func TestRetriveShortURL(t *testing.T) {
 			repoMock := new(mocks.RepositoryInterface)
 			repoMock.On("GetURL", tt.query).Return(tt.result, tt.err)
 
-			cfg := configuration.New()
-			router := setupRouter(repoMock, cfg.BaseURL)
+			router := setupRouter(repoMock, configuration.BaseURL)
 
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest(http.MethodGet, "/"+tt.query, nil)
@@ -151,8 +150,7 @@ func TestCreateShortURL(t *testing.T) {
 			repoMock := new(mocks.RepositoryInterface)
 			repoMock.On("AddURL", tt.body).Return(tt.result, nil)
 
-			cfg := configuration.New()
-			router := setupRouter(repoMock, cfg.BaseURL)
+			router := setupRouter(repoMock, configuration.BaseURL)
 
 			body := strings.NewReader(tt.body)
 			w := httptest.NewRecorder()
@@ -222,8 +220,7 @@ func TestShortenURL(t *testing.T) {
 			repoMock := new(mocks.RepositoryInterface)
 			repoMock.On("AddURL", tt.rawData).Return(tt.result, nil)
 
-			cfg := configuration.New()
-			router := setupRouter(repoMock, cfg.BaseURL)
+			router := setupRouter(repoMock, configuration.BaseURL)
 
 			body := strings.NewReader(tt.body)
 			w := httptest.NewRecorder()
