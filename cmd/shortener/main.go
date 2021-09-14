@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/configuration"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/handlers"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/middlewares"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/models"
 )
 
@@ -17,6 +18,9 @@ func setupRouter(repo models.RepositoryInterface, baseURL string) *gin.Engine {
 	router := gin.Default()
 
 	handler := handlers.New(repo, baseURL)
+
+	router.Use(middlewares.GzipEncodeMiddleware())
+	router.Use(middlewares.GzipDecodeMiddleware())
 
 	router.GET("/:id", handler.RetriveShortURL)
 	router.POST("/", handler.CreateShortURL)
