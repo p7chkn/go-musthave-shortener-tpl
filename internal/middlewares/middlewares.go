@@ -3,7 +3,6 @@ package middlewares
 import (
 	"bytes"
 	"compress/gzip"
-	"fmt"
 	"io"
 	"strings"
 
@@ -60,9 +59,6 @@ func GzipDecodeMiddleware() gin.HandlerFunc {
 			logger.Error(err.Error())
 			return
 		}
-		fmt.Println("--------------------")
-		// fmt.Println(reader)
-
 		c.Request.Body = io.NopCloser(reader)
 
 	}
