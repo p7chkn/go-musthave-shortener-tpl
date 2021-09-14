@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/configuration"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/handlers"
@@ -20,7 +19,8 @@ func setupRouter(repo models.RepositoryInterface, baseURL string) *gin.Engine {
 
 	handler := handlers.New(repo, baseURL)
 
-	router.Use(gzip.Gzip(gzip.DefaultCompression))
+	// router.Use(gzip.Gzip(gzip.DefaultCompression))
+	router.Use(middlewares.GzipEncodeMiddleware())
 	router.Use(middlewares.GzipDecodeMiddleware())
 
 	router.GET("/:id", handler.RetriveShortURL)

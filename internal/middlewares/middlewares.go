@@ -1,13 +1,11 @@
 package middlewares
 
 import (
-	"bytes"
 	"compress/gzip"
-	"io"
+	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 )
 
 type gzipWriter struct {
@@ -15,25 +13,25 @@ type gzipWriter struct {
 	writer *gzip.Writer
 }
 
-func (w *gzipWriter) Write(b []byte) (int, error) {
-	return w.writer.Write(b)
+func (g *gzipWriter) Write(data []byte) (int, error) {
+	return g.writer.Write(data)
 }
 
 func GzipEncodeMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		logger, _ := zap.NewDevelopment()
 
 		if strings.Contains(c.Request.Header.Get("Accept-Encoding"), "gzip") {
 			gz, err := gzip.NewWriterLevel(c.Writer, gzip.BestSpeed)
-			gz.Reset(c.Writer)
-			if err == nil {
-				c.Header("Content-Encoding", "gzip")
-				c.Header("Vary", "Accept-Encoding")
-				c.Writer = &gzipWriter{c.Writer, gz}
-			} else {
-				logger.Error("Problem with creating gzipWriter")
+			if err != nil {
+				c.AbortWithError(http.StatusBadRequest, err)
+				return
 			}
+			defer gz.Close()
+			c.Header("Vary", "Accept-Encoding")
+			c.Header("Content-Encoding", "gzip")
+			c.Writer = &gzipWriter{c.Writer, gz}
 		}
+		c.Next()
 	}
 }
 
@@ -42,24 +40,16 @@ func GzipDecodeMiddleware() gin.HandlerFunc {
 		if !strings.Contains(c.Request.Header.Get("Content-Encoding"), "gzip") {
 			return
 		}
-		logger, _ := zap.NewDevelopment()
 
-		defer c.Request.Body.Close()
-
-		body, err := io.ReadAll(c.Request.Body)
-
+		r, err := gzip.NewReader(c.Request.Body)
 		if err != nil {
-			logger.Error(err.Error())
+			c.AbortWithError(http.StatusBadRequest, err)
 			return
 		}
 
-		reader, err := gzip.NewReader(bytes.NewReader(body))
+		c.Request.Body = r
 
-		if err != nil {
-			logger.Error(err.Error())
-			return
-		}
-		c.Request.Body = io.NopCloser(reader)
+		c.Next()
 
 	}
 }
