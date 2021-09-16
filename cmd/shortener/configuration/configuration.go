@@ -1,6 +1,7 @@
 package configuration
 
 import (
+	"crypto/rand"
 	"flag"
 	"fmt"
 	"log"
@@ -17,17 +18,19 @@ const (
 	BaseURL      = "http://localhost:8080/"
 )
 
-type config struct {
+type Config struct {
 	ServerAdress string `env:"SERVER_ADDRESS"`
 	BaseURL      string `env:"BASE_URL"`
 	FilePath     string `env:"FILE_STORAGE_PATH"`
+	Key          []byte
 }
 
-func New() *config {
-	cfg := config{
+func New() *Config {
+	cfg := Config{
 		ServerAdress: ServerAdress,
 		FilePath:     FileName,
 		BaseURL:      BaseURL,
+		Key:          make([]byte, 16),
 	}
 	cfg.BaseURL = fmt.Sprintf("http://%s/", cfg.ServerAdress)
 
@@ -65,5 +68,25 @@ func New() *config {
 		cfg.BaseURL += "/"
 	}
 
+	file, err := os.Open("key")
+
+	if err != nil {
+		cfg.Key, _ = generateRandom(16)
+		file, _ := os.Create("key")
+		file.Write(cfg.Key)
+	} else {
+		file.Read(cfg.Key)
+	}
+
 	return &cfg
+}
+
+func generateRandom(size int) ([]byte, error) {
+	b := make([]byte, size)
+	_, err := rand.Read(b)
+	if err != nil {
+		return nil, err
+	}
+
+	return b, nil
 }

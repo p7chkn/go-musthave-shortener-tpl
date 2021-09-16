@@ -50,8 +50,8 @@ func (h *Handler) CreateShortURL(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, result)
 		return
 	}
-
-	short := h.repo.AddURL(string(body))
+	cookie, _ := c.Request.Cookie("userId")
+	short := h.repo.AddURL(string(body), cookie.Value)
 	c.String(http.StatusCreated, h.baseURL+short)
 }
 
@@ -75,7 +75,8 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 		return
 	}
 
-	short := h.repo.AddURL(url.URL)
+	cookie, _ := c.Request.Cookie("userId")
+	short := h.repo.AddURL(url.URL, cookie.Value)
 	result["result"] = h.baseURL + short
 	c.IndentedJSON(http.StatusCreated, result)
 
@@ -88,4 +89,15 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 	// short := h.repo.AddURL(url.URL)
 	// result["result"] = "http://localhost:8080/" + short
 	// c.IndentedJSON(http.StatusCreated, result)
+}
+
+func (h *Handler) GetUserURL(c *gin.Context) {
+	result := []models.ResponseGetURL{}
+	cookie, _ := c.Request.Cookie("userId")
+	if cookie == nil {
+		c.IndentedJSON(http.StatusOK, result)
+		return
+	}
+	result = h.repo.GetUserURL(cookie.Value)
+	c.IndentedJSON(http.StatusOK, result)
 }

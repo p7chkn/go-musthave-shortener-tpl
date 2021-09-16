@@ -18,13 +18,14 @@ func NewFileRepository(filePath string) RepositoryInterface {
 type RepositoryMap struct {
 	values   map[string]string
 	filePath string
+	usersURL map[string][]string
 }
 
 func NewRepositoryMap(filePath string) *RepositoryMap {
-	values := make(map[string]string)
 	repo := RepositoryMap{
-		values:   values,
+		values:   map[string]string{},
 		filePath: filePath,
+		usersURL: map[string][]string{},
 	}
 	file, err := os.OpenFile(filePath, os.O_RDONLY|os.O_CREATE, configuration.FilePerm)
 	if err != nil {
@@ -48,10 +49,11 @@ func NewRepositoryMap(filePath string) *RepositoryMap {
 	return &repo
 }
 
-func (repo *RepositoryMap) AddURL(longURL string) string {
+func (repo *RepositoryMap) AddURL(longURL string, user string) string {
 	shortURL := shortener.ShorterURL(longURL)
 	repo.values[shortURL] = longURL
-	repo.writeRow(longURL, shortURL, repo.filePath)
+	repo.writeRow(longURL, shortURL, repo.filePath, user)
+	repo.usersURL[user] = append(repo.usersURL[user], shortURL)
 	return shortURL
 }
 
@@ -63,9 +65,22 @@ func (repo *RepositoryMap) GetURL(shortURL string) (string, error) {
 	return resultURL, nil
 }
 
+func (repo *RepositoryMap) GetUserURL(user string) []ResponseGetURL {
+	result := []ResponseGetURL{}
+	for _, url := range repo.usersURL[user] {
+		temp := ResponseGetURL{
+			ShortURL:  url,
+			OriginURL: repo.values[url],
+		}
+		result = append(result, temp)
+	}
+	return result
+}
+
 type row struct {
 	ShortURL string `json:"short_url"`
 	LongURL  string `json:"long_url"`
+	User     string `json:"user"`
 }
 
 func (repo *RepositoryMap) readRow(reader *bufio.Scanner) (bool, error) {
@@ -83,11 +98,18 @@ func (repo *RepositoryMap) readRow(reader *bufio.Scanner) (bool, error) {
 		return false, err
 	}
 	repo.values[row.ShortURL] = row.LongURL
+	repo.usersURL[row.User] = append(repo.usersURL[row.User], row.ShortURL)
+	// _, ok := repo.usersURL[row.User]
+	// if ok {
+	// 	repo.usersURL[row.User] = append(repo.usersURL[row.User], row.ShortURL)
+	// 	return true, nil
+	// }
+	// repo.usersURL[row.User] = []string{row.ShortURL}
 
 	return true, nil
 }
 
-func (repo *RepositoryMap) writeRow(longURL string, shortURL string, filePath string) error {
+func (repo *RepositoryMap) writeRow(longURL string, shortURL string, filePath string, user string) error {
 	file, err := os.OpenFile(repo.filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, configuration.FilePerm)
 
 	if err != nil {
@@ -98,6 +120,7 @@ func (repo *RepositoryMap) writeRow(longURL string, shortURL string, filePath st
 	data, err := json.Marshal(&row{
 		LongURL:  longURL,
 		ShortURL: shortURL,
+		User:     user,
 	})
 	if err != nil {
 		return err
@@ -114,8 +137,14 @@ func (repo *RepositoryMap) writeRow(longURL string, shortURL string, filePath st
 	return writer.Flush()
 }
 
+type ResponseGetURL struct {
+	ShortURL  string `json:"short_url"`
+	OriginURL string `json:"original_url"`
+}
+
 //go:generate mockery -name=RepositoryInterface
 type RepositoryInterface interface {
-	AddURL(longURL string) string
+	AddURL(longURL string, user string) string
 	GetURL(shortURL string) (string, error)
+	GetUserURL(user string) []ResponseGetURL
 }

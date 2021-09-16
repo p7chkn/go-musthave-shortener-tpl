@@ -14,18 +14,19 @@ import (
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/models"
 )
 
-func setupRouter(repo models.RepositoryInterface, baseURL string) *gin.Engine {
+func setupRouter(repo models.RepositoryInterface, cfg *configuration.Config) *gin.Engine {
 	router := gin.Default()
 
-	handler := handlers.New(repo, baseURL)
+	handler := handlers.New(repo, cfg.BaseURL)
 
-	// router.Use(gzip.Gzip(gzip.DefaultCompression))
 	router.Use(middlewares.GzipEncodeMiddleware())
 	router.Use(middlewares.GzipDecodeMiddleware())
+	router.Use(middlewares.CookiMiddleware(cfg))
 
 	router.GET("/:id", handler.RetriveShortURL)
 	router.POST("/", handler.CreateShortURL)
 	router.POST("/api/shorten", handler.ShortenURL)
+	router.GET("/users/urls", handler.GetUserURL)
 
 	router.HandleMethodNotAllowed = true
 
@@ -36,7 +37,7 @@ func main() {
 
 	cfg := configuration.New()
 
-	handler := setupRouter(models.NewFileRepository(cfg.FilePath), cfg.BaseURL)
+	handler := setupRouter(models.NewFileRepository(cfg.FilePath), cfg)
 
 	server := &http.Server{
 		Addr:    cfg.ServerAdress,

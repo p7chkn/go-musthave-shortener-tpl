@@ -2,10 +2,14 @@ package middlewares
 
 import (
 	"compress/gzip"
+	"crypto/hmac"
+	"crypto/sha256"
+	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/configuration"
 )
 
 type gzipWriter struct {
@@ -51,5 +55,24 @@ func GzipDecodeMiddleware() gin.HandlerFunc {
 
 		c.Next()
 
+	}
+}
+
+func CookiMiddleware(cfg *configuration.Config) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		cookie, _ := c.Request.Cookie("userId")
+		verifyOrCreateCookie(cookie, c, cfg)
+		c.Next()
+	}
+}
+
+func verifyOrCreateCookie(cookie *http.Cookie, c *gin.Context, cfg *configuration.Config) {
+	h := hmac.New(sha256.New, cfg.Key)
+	h.Write([]byte(c.Request.Header.Get("X-Forwarded-For")))
+	value := h.Sum(nil)
+
+	if cookie == nil || hmac.Equal([]byte(cookie.Value), value) {
+		fmt.Println("Set new cookie")
+		c.SetCookie("userId", string(value), 864000, "/", cfg.BaseURL, false, false)
 	}
 }
