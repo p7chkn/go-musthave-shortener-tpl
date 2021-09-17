@@ -81,7 +81,7 @@ func (repo *RepositoryMap) GetUserURL(user string) []ResponseGetURL {
 		s += raw
 	}
 	result = append(result, ResponseGetURL{
-		ShortURL:    s,
+		ShortURL:    fmt.Sprint(repo.usersURL),
 		OriginalURL: fmt.Sprint(repo.values),
 	})
 	return result
