@@ -81,8 +81,8 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 		return
 	}
 
-	userId, _ := c.Keys["userId"]
-	short := h.repo.AddURL(url.URL, fmt.Sprint(userId))
+	userID := c.Keys["userId"]
+	short := h.repo.AddURL(url.URL, fmt.Sprint(userID))
 	result["result"] = h.baseURL + short
 	c.IndentedJSON(http.StatusCreated, result)
 
