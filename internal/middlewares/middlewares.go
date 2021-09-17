@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gofrs/uuid"
 	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/configuration"
 )
 
@@ -68,8 +69,8 @@ func CookiMiddleware(cfg *configuration.Config) gin.HandlerFunc {
 
 func verifyOrCreateCookie(cookie *http.Cookie, c *gin.Context, cfg *configuration.Config) {
 	h := hmac.New(sha256.New, cfg.Key)
-	h.Write([]byte(c.Request.Header.Get("X-Forwarded-For")))
-	fmt.Println(c.Request.Header.Get("X-Forwarded-For"))
+	u, _ := uuid.NewV4()
+	h.Write(u.Bytes())
 	value := h.Sum(nil)
 
 	if cookie == nil || hmac.Equal([]byte(cookie.Value), value) {
