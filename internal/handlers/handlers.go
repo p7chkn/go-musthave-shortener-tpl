@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 
@@ -80,14 +81,8 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 		return
 	}
 
-	cookie, _ := c.Request.Cookie("userId")
-	if cookie == nil {
-		short := h.repo.AddURL(string(body), "None")
-		result["result"] = h.baseURL + short
-		c.IndentedJSON(http.StatusCreated, result)
-		return
-	}
-	short := h.repo.AddURL(url.URL, cookie.Value)
+	userId, _ := c.Keys["userId"]
+	short := h.repo.AddURL(url.URL, fmt.Sprint(userId))
 	result["result"] = h.baseURL + short
 	c.IndentedJSON(http.StatusCreated, result)
 

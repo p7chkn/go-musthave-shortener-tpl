@@ -11,23 +11,23 @@ import (
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/shortener"
 )
 
-func NewFileRepository(filePath string) RepositoryInterface {
-	return RepositoryInterface(NewRepositoryMap(filePath))
+func NewFileRepository(cfg *configuration.Config) RepositoryInterface {
+	return RepositoryInterface(NewRepositoryMap(cfg))
 }
 
 type RepositoryMap struct {
 	values   map[string]string
-	filePath string
+	Cfg      *configuration.Config
 	usersURL map[string][]string
 }
 
-func NewRepositoryMap(filePath string) *RepositoryMap {
+func NewRepositoryMap(cfg *configuration.Config) *RepositoryMap {
 	repo := RepositoryMap{
 		values:   map[string]string{},
-		filePath: filePath,
+		Cfg:      cfg,
 		usersURL: map[string][]string{},
 	}
-	file, err := os.OpenFile(filePath, os.O_RDONLY|os.O_CREATE, configuration.FilePerm)
+	file, err := os.OpenFile(cfg.FilePath, os.O_RDONLY|os.O_CREATE, configuration.FilePerm)
 	if err != nil {
 		log.Printf("Error with reading file: %v\n", err)
 	}
@@ -52,7 +52,7 @@ func NewRepositoryMap(filePath string) *RepositoryMap {
 func (repo *RepositoryMap) AddURL(longURL string, user string) string {
 	shortURL := shortener.ShorterURL(longURL)
 	repo.values[shortURL] = longURL
-	repo.writeRow(longURL, shortURL, repo.filePath, user)
+	repo.writeRow(longURL, shortURL, repo.Cfg.FilePath, user)
 	repo.usersURL[user] = append(repo.usersURL[user], shortURL)
 	return shortURL
 }
@@ -69,7 +69,7 @@ func (repo *RepositoryMap) GetUserURL(user string) []ResponseGetURL {
 	result := []ResponseGetURL{}
 	for _, url := range repo.usersURL[user] {
 		temp := ResponseGetURL{
-			ShortURL:  url,
+			ShortURL:  repo.Cfg.BaseURL + url,
 			OriginURL: repo.values[url],
 		}
 		result = append(result, temp)
@@ -99,18 +99,12 @@ func (repo *RepositoryMap) readRow(reader *bufio.Scanner) (bool, error) {
 	}
 	repo.values[row.ShortURL] = row.LongURL
 	repo.usersURL[row.User] = append(repo.usersURL[row.User], row.ShortURL)
-	// _, ok := repo.usersURL[row.User]
-	// if ok {
-	// 	repo.usersURL[row.User] = append(repo.usersURL[row.User], row.ShortURL)
-	// 	return true, nil
-	// }
-	// repo.usersURL[row.User] = []string{row.ShortURL}
 
 	return true, nil
 }
 
 func (repo *RepositoryMap) writeRow(longURL string, shortURL string, filePath string, user string) error {
-	file, err := os.OpenFile(repo.filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, configuration.FilePerm)
+	file, err := os.OpenFile(repo.Cfg.FilePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, configuration.FilePerm)
 
 	if err != nil {
 		return err

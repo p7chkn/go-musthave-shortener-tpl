@@ -73,8 +73,13 @@ func verifyOrCreateCookie(cookie *http.Cookie, c *gin.Context, cfg *configuratio
 	h.Write(u.Bytes())
 	value := h.Sum(nil)
 
-	if cookie == nil || hmac.Equal([]byte(cookie.Value), value) {
+	if cookie == nil {
 		fmt.Println("Set new cookie")
 		c.SetCookie("userId", string(value), 864000, "/", cfg.BaseURL, false, false)
+		c.Set("userId", value)
+		c.Next()
+		return
 	}
+	c.Set("userId", cookie.Value)
+	c.Next()
 }
