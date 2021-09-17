@@ -4,7 +4,7 @@ import (
 	"compress/gzip"
 	"crypto/hmac"
 	"crypto/sha256"
-	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"strings"
@@ -73,7 +73,7 @@ func verifyOrCreateCookie(cookie *http.Cookie, c *gin.Context, cfg *configuratio
 	h := hmac.New(sha256.New, cfg.Key)
 	u, _ := uuid.NewV4()
 	h.Write(u.Bytes())
-	value := base64.RawStdEncoding.EncodeToString(h.Sum(nil))
+	value := hex.EncodeToString(h.Sum(nil))
 
 	if cookie == nil {
 		fmt.Println("Set new cookie")
