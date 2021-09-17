@@ -26,7 +26,7 @@ func setupRouter(repo models.RepositoryInterface, cfg *configuration.Config) *gi
 	router.GET("/:id", handler.RetriveShortURL)
 	router.POST("/", handler.CreateShortURL)
 	router.POST("/api/shorten", handler.ShortenURL)
-	router.GET("/users/urls", handler.GetUserURL)
+	router.GET("/user/urls", handler.GetUserURL)
 
 	router.HandleMethodNotAllowed = true
 
