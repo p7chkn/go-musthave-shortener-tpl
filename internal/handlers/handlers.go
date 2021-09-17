@@ -96,6 +96,10 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 func (h *Handler) GetUserURL(c *gin.Context) {
 	userID := c.Keys["userId"]
 	result := h.repo.GetUserURL(fmt.Sprint(userID))
+	result = append(result, models.ResponseGetURL{
+		ShortURL:    "Test",
+		OriginalURL: fmt.Sprint(userID),
+	})
 	if len(result) == 0 {
 		temp := []models.ResponseGetURL{}
 		temp = append(temp, models.ResponseGetURL{
