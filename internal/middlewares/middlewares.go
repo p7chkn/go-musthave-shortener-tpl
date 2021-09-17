@@ -69,6 +69,7 @@ func CookiMiddleware(cfg *configuration.Config) gin.HandlerFunc {
 func verifyOrCreateCookie(cookie *http.Cookie, c *gin.Context, cfg *configuration.Config) {
 	h := hmac.New(sha256.New, cfg.Key)
 	h.Write([]byte(c.Request.Header.Get("X-Forwarded-For")))
+	fmt.Println(c.Request.Header.Get("X-Forwarded-For"))
 	value := h.Sum(nil)
 
 	if cookie == nil || hmac.Equal([]byte(cookie.Value), value) {
