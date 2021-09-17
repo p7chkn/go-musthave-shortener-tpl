@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 
@@ -51,9 +50,7 @@ func (h *Handler) CreateShortURL(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, result)
 		return
 	}
-	userID := c.Keys["userId"]
-
-	short := h.repo.AddURL(string(body), fmt.Sprint(userID))
+	short := h.repo.AddURL(string(body), c.GetString("userId"))
 	c.String(http.StatusCreated, h.baseURL+short)
 }
 
@@ -77,8 +74,7 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 		return
 	}
 
-	userID := c.Keys["userId"]
-	short := h.repo.AddURL(url.URL, fmt.Sprint(userID))
+	short := h.repo.AddURL(url.URL, c.GetString("userId"))
 	result["result"] = h.baseURL + short
 	c.IndentedJSON(http.StatusCreated, result)
 
@@ -94,8 +90,7 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 }
 
 func (h *Handler) GetUserURL(c *gin.Context) {
-	userID := c.Keys["userId"]
-	result := h.repo.GetUserURL(fmt.Sprint(userID))
+	result := h.repo.GetUserURL(c.GetString("userId"))
 	if len(result) == 0 {
 		c.IndentedJSON(http.StatusOK, result)
 		return

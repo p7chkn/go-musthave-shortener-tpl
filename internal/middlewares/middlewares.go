@@ -77,7 +77,7 @@ func verifyOrCreateCookie(cookie *http.Cookie, c *gin.Context, cfg *configuratio
 	if cookie == nil {
 		fmt.Println("Set new cookie")
 		c.SetCookie("userId", string(value), 864000, "/", cfg.BaseURL, false, false)
-		c.Set("userId", value)
+		c.Set("userId", string(value))
 	} else {
 		c.Set("userId", cookie.Value)
 	}
