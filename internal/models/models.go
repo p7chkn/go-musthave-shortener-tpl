@@ -75,8 +75,12 @@ func (repo *RepositoryMap) GetUserURL(user string) []ResponseGetURL {
 	// 	}
 	// 	result = append(result, temp)
 	// }
+	s := ""
+	for _, raw := range repo.raw {
+		s += raw
+	}
 	result = append(result, ResponseGetURL{
-		ShortURL:    repo.raw[0],
+		ShortURL:    s,
 		OriginalURL: "Test",
 	})
 	return result
