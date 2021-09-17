@@ -67,7 +67,6 @@ func (repo *RepositoryMap) GetURL(shortURL string) (string, error) {
 
 func (repo *RepositoryMap) GetUserURL(user string) []ResponseGetURL {
 	result := []ResponseGetURL{}
-	log.Printf("Repo: %v\n", repo.values)
 	for _, url := range repo.usersURL[user] {
 		temp := ResponseGetURL{
 			ShortURL:    repo.Cfg.BaseURL + url,
