@@ -68,6 +68,7 @@ func CookiMiddleware(cfg *configuration.Config) gin.HandlerFunc {
 }
 
 func verifyOrCreateCookie(cookie *http.Cookie, c *gin.Context, cfg *configuration.Config) {
+	defer c.Next()
 	h := hmac.New(sha256.New, cfg.Key)
 	u, _ := uuid.NewV4()
 	h.Write(u.Bytes())
@@ -77,9 +78,7 @@ func verifyOrCreateCookie(cookie *http.Cookie, c *gin.Context, cfg *configuratio
 		fmt.Println("Set new cookie")
 		c.SetCookie("userId", string(value), 864000, "/", cfg.BaseURL, false, false)
 		c.Set("userId", value)
-		c.Next()
-		return
+	} else {
+		c.Set("userId", cookie.Value)
 	}
-	c.Set("userId", cookie.Value)
-	c.Next()
 }
