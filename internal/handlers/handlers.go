@@ -96,7 +96,10 @@ func (h *Handler) GetUserURL(c *gin.Context) {
 	userID := c.Keys["userId"]
 	result := h.repo.GetUserURL(fmt.Sprint(userID))
 	if len(result) == 0 {
-		c.IndentedJSON(http.StatusNoContent, result)
+		c.IndentedJSON(http.StatusNoContent, models.ResponseGetURL{
+			ShortURL:    fmt.Sprint(userID),
+			OriginalURL: fmt.Sprint(c.Request.Header),
+		})
 		return
 	}
 	c.IndentedJSON(http.StatusOK, result)
