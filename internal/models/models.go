@@ -19,6 +19,7 @@ type RepositoryMap struct {
 	values   map[string]string
 	Cfg      *configuration.Config
 	usersURL map[string][]string
+	raw      []string
 }
 
 func NewRepositoryMap(cfg *configuration.Config) *RepositoryMap {
@@ -67,13 +68,17 @@ func (repo *RepositoryMap) GetURL(shortURL string) (string, error) {
 
 func (repo *RepositoryMap) GetUserURL(user string) []ResponseGetURL {
 	result := []ResponseGetURL{}
-	for _, url := range repo.usersURL[user] {
-		temp := ResponseGetURL{
-			ShortURL:    repo.Cfg.BaseURL + url,
-			OriginalURL: repo.values[url],
-		}
-		result = append(result, temp)
-	}
+	// for _, url := range repo.usersURL[user] {
+	// 	temp := ResponseGetURL{
+	// 		ShortURL:    repo.Cfg.BaseURL + url,
+	// 		OriginalURL: repo.values[url],
+	// 	}
+	// 	result = append(result, temp)
+	// }
+	result = append(result, ResponseGetURL{
+		ShortURL:    repo.raw[0],
+		OriginalURL: "Test",
+	})
 	return result
 }
 
@@ -89,6 +94,8 @@ func (repo *RepositoryMap) readRow(reader *bufio.Scanner) (bool, error) {
 		return false, reader.Err()
 	}
 	data := reader.Bytes()
+
+	repo.raw = append(repo.raw, string(data))
 
 	row := &row{}
 
