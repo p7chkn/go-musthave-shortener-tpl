@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -52,6 +53,7 @@ func (h *Handler) CreateShortURL(c *gin.Context) {
 		return
 	}
 	userID := c.Keys["userId"]
+
 	short := h.repo.AddURL(string(body), fmt.Sprint(userID))
 	c.String(http.StatusCreated, h.baseURL+short)
 }
@@ -95,11 +97,9 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 func (h *Handler) GetUserURL(c *gin.Context) {
 	userID := c.Keys["userId"]
 	result := h.repo.GetUserURL(fmt.Sprint(userID))
+	log.Printf("UserID %v \n", userID)
 	if len(result) == 0 {
-		c.IndentedJSON(http.StatusNoContent, models.ResponseGetURL{
-			ShortURL:    fmt.Sprint(userID),
-			OriginalURL: fmt.Sprint(c.Request.Header),
-		})
+		c.IndentedJSON(http.StatusNoContent, result)
 		return
 	}
 	c.IndentedJSON(http.StatusOK, result)
