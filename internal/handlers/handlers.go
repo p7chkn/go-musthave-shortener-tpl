@@ -99,7 +99,7 @@ func (h *Handler) GetUserURL(c *gin.Context) {
 	if len(result) == 0 {
 		temp := []models.ResponseGetURL{}
 		temp = append(temp, models.ResponseGetURL{
-			ShortURL:    "http://localhost:8080/MjROY0pqx2Oz2UD70xYYHomW8t4=",
+			ShortURL:    fmt.Sprint(userID),
 			OriginalURL: "http://a1h0xl6fjwp5.ru/asilsyrtvvz6j8"})
 		c.IndentedJSON(http.StatusOK, temp)
 		return
