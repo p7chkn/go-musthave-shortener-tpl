@@ -99,11 +99,11 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 
 func (h *Handler) GetUserURL(c *gin.Context) {
 	result := []models.ResponseGetURL{}
-	cookie, _ := c.Request.Cookie("userId")
-	if cookie == nil {
-		c.IndentedJSON(http.StatusOK, result)
+	userID := c.Keys["userId"]
+	result = h.repo.GetUserURL(fmt.Sprint(userID))
+	if len(result) == 0 {
+		c.IndentedJSON(http.StatusNoContent, result)
 		return
 	}
-	result = h.repo.GetUserURL(cookie.Value)
 	c.IndentedJSON(http.StatusOK, result)
 }
