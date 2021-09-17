@@ -69,8 +69,8 @@ func (repo *RepositoryMap) GetUserURL(user string) []ResponseGetURL {
 	result := []ResponseGetURL{}
 	for _, url := range repo.usersURL[user] {
 		temp := ResponseGetURL{
-			ShortURL:  repo.Cfg.BaseURL + url,
-			OriginURL: repo.values[url],
+			ShortURL:    repo.Cfg.BaseURL + url,
+			OriginalURL: repo.values[url],
 		}
 		result = append(result, temp)
 	}
@@ -132,8 +132,8 @@ func (repo *RepositoryMap) writeRow(longURL string, shortURL string, filePath st
 }
 
 type ResponseGetURL struct {
-	ShortURL  string `json:"short_url"`
-	OriginURL string `json:"original_url"`
+	ShortURL    string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
 }
 
 //go:generate mockery -name=RepositoryInterface
