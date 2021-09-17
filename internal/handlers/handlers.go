@@ -92,7 +92,7 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 func (h *Handler) GetUserURL(c *gin.Context) {
 	result := h.repo.GetUserURL(c.GetString("userId"))
 	if len(result) == 0 {
-		c.IndentedJSON(http.StatusOK, result)
+		c.IndentedJSON(http.StatusNoContent, result)
 		return
 	}
 	c.IndentedJSON(http.StatusOK, result)

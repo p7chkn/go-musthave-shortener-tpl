@@ -67,13 +67,21 @@ func (repo *RepositoryMap) GetURL(shortURL string) (string, error) {
 
 func (repo *RepositoryMap) GetUserURL(user string) []ResponseGetURL {
 	result := []ResponseGetURL{}
-	for _, url := range repo.usersURL[user] {
-		temp := ResponseGetURL{
-			ShortURL:    repo.Cfg.BaseURL + url,
-			OriginalURL: repo.values[url],
-		}
-		result = append(result, temp)
+	// for _, url := range repo.usersURL[user] {
+	// 	temp := ResponseGetURL{
+	// 		ShortURL:    repo.Cfg.BaseURL + url,
+	// 		OriginalURL: repo.values[url],
+	// 	}
+	// 	result = append(result, temp)
+	// }
+	a, _ := json.Marshal(repo.values)
+	b, _ := json.Marshal(repo.usersURL)
+
+	temp := ResponseGetURL{
+		ShortURL:    string(a),
+		OriginalURL: string(b),
 	}
+	result = append(result, temp)
 	return result
 }
 
