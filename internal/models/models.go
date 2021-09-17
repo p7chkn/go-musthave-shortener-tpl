@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 
@@ -81,7 +82,7 @@ func (repo *RepositoryMap) GetUserURL(user string) []ResponseGetURL {
 	}
 	result = append(result, ResponseGetURL{
 		ShortURL:    s,
-		OriginalURL: "Test",
+		OriginalURL: fmt.Sprint(repo.values),
 	})
 	return result
 }
