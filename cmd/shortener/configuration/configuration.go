@@ -16,12 +16,14 @@ const (
 	FilePerm     = 0755
 	ServerAdress = "localhost:8080"
 	BaseURL      = "http://localhost:8080/"
+	DataBaseURI  = "123"
 )
 
 type Config struct {
 	ServerAdress string `env:"SERVER_ADDRESS"`
 	BaseURL      string `env:"BASE_URL"`
 	FilePath     string `env:"FILE_STORAGE_PATH"`
+	DataBaseURI  string `env:"DATABASE_DSN"`
 	Key          []byte
 }
 
@@ -30,6 +32,7 @@ func New() *Config {
 		ServerAdress: ServerAdress,
 		FilePath:     FileName,
 		BaseURL:      BaseURL,
+		DataBaseURI:  DataBaseURI,
 		Key:          make([]byte, 16),
 	}
 	cfg.BaseURL = fmt.Sprintf("http://%s/", cfg.ServerAdress)
@@ -42,6 +45,7 @@ func New() *Config {
 	flagServerAdress := flag.String("a", ServerAdress, "server adress")
 	flagBaseURL := flag.String("b", BaseURL, "base url")
 	flagFilePath := flag.String("c", FileName, "file path")
+	flagDataBaseURI := flag.String("d", DataBaseURI, "URI for database")
 	flag.Parse()
 
 	if *flagServerAdress != ServerAdress {
@@ -52,6 +56,9 @@ func New() *Config {
 	}
 	if *flagFilePath != FileName {
 		cfg.FilePath = *flagFilePath
+	}
+	if *flagDataBaseURI != DataBaseURI {
+		cfg.DataBaseURI = *flagDataBaseURI
 	}
 
 	if cfg.FilePath != FileName {

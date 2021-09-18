@@ -6,7 +6,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/configuration"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/models"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/database"
 )
 
 type PostURL struct {
@@ -14,14 +16,16 @@ type PostURL struct {
 }
 
 type Handler struct {
-	repo    models.RepositoryInterface
-	baseURL string
+	repo        models.RepositoryInterface
+	baseURL     string
+	databaseURI string
 }
 
-func New(repo models.RepositoryInterface, baseURL string) *Handler {
+func New(repo models.RepositoryInterface, cfg *configuration.Config) *Handler {
 	return &Handler{
-		repo:    repo,
-		baseURL: baseURL,
+		repo:        repo,
+		baseURL:     cfg.BaseURL,
+		databaseURI: cfg.DataBaseURI,
 	}
 }
 
@@ -96,4 +100,13 @@ func (h *Handler) GetUserURL(c *gin.Context) {
 		return
 	}
 	c.IndentedJSON(http.StatusOK, result)
+}
+
+func (h *Handler) PingDB(c *gin.Context) {
+	err := database.Ping(h.databaseURI)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "")
+		return
+	}
+	c.String(http.StatusOK, "")
 }

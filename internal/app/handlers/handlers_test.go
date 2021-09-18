@@ -26,7 +26,7 @@ func setupRouter(repo models.RepositoryInterface, baseURL string) *gin.Engine {
 		Key: key,
 	}
 
-	handler := New(repo, baseURL)
+	handler := New(repo, cfg)
 
 	router.Use(middlewares.CookiMiddleware(cfg))
 
@@ -295,12 +295,15 @@ func TestGetUserURL(t *testing.T) {
 			router.ServeHTTP(w, req)
 
 			type respPOST struct {
-				Url string `json:"result"`
+				URL string `json:"result"`
 			}
 			header := w.Result().Header.Get("Set-Cookie")
 			temp := strings.SplitAfter(header, "userId=")
 			userID := strings.Split(temp[1], ";")[0]
-			resBody, _ := ioutil.ReadAll(w.Body)
+			resBody, err := ioutil.ReadAll(w.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
 			var res respPOST
 			json.Unmarshal(resBody, &res)
 
@@ -313,7 +316,7 @@ func TestGetUserURL(t *testing.T) {
 			}
 			req.AddCookie(&cookie)
 			fromGet := models.ResponseGetURL{
-				ShortURL:    res.Url,
+				ShortURL:    res.URL,
 				OriginalURL: tt.rawData,
 			}
 			response := []models.ResponseGetURL{}
@@ -322,7 +325,10 @@ func TestGetUserURL(t *testing.T) {
 			router.ServeHTTP(w, req)
 
 			var resGET []models.ResponseGetURL
-			resBody, _ = ioutil.ReadAll(w.Body)
+			resBody, err = ioutil.ReadAll(w.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
 			json.Unmarshal(resBody, &resGET)
 
 			assert.Equal(t, tt.want.code, w.Code)

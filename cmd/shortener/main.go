@@ -17,7 +17,7 @@ import (
 func setupRouter(repo models.RepositoryInterface, cfg *configuration.Config) *gin.Engine {
 	router := gin.Default()
 
-	handler := handlers.New(repo, cfg.BaseURL)
+	handler := handlers.New(repo, cfg)
 
 	router.Use(middlewares.GzipEncodeMiddleware())
 	router.Use(middlewares.GzipDecodeMiddleware())
@@ -27,6 +27,7 @@ func setupRouter(repo models.RepositoryInterface, cfg *configuration.Config) *gi
 	router.POST("/", handler.CreateShortURL)
 	router.POST("/api/shorten", handler.ShortenURL)
 	router.GET("/user/urls", handler.GetUserURL)
+	router.GET("/ping", handler.PingDB)
 
 	router.HandleMethodNotAllowed = true
 
