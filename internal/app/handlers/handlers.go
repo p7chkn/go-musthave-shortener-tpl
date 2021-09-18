@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/p7chkn/go-musthave-shortener-tpl/internal/models"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/models"
 )
 
 type PostURL struct {

@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	models "github.com/p7chkn/go-musthave-shortener-tpl/internal/models"
+	models "github.com/p7chkn/go-musthave-shortener-tpl/internal/app/models"
 	mock "github.com/stretchr/testify/mock"
 )
 

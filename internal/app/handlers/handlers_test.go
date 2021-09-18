@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -11,19 +12,28 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/configuration"
-	"github.com/p7chkn/go-musthave-shortener-tpl/internal/models"
-	"github.com/p7chkn/go-musthave-shortener-tpl/internal/models/mocks"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/middlewares"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/models"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/models/mocks"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func setupRouter(repo models.RepositoryInterface, baseURL string) *gin.Engine {
 	router := gin.Default()
+	key, _ := configuration.GenerateRandom(16)
+	cfg := &configuration.Config{
+		Key: key,
+	}
 
 	handler := New(repo, baseURL)
+
+	router.Use(middlewares.CookiMiddleware(cfg))
 
 	router.GET("/:id", handler.RetriveShortURL)
 	router.POST("/", handler.CreateShortURL)
 	router.POST("/api/shorten", handler.ShortenURL)
+	router.GET("/user/urls", handler.GetUserURL)
 
 	router.HandleMethodNotAllowed = true
 
@@ -148,7 +158,7 @@ func TestCreateShortURL(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			repoMock := new(mocks.RepositoryInterface)
-			repoMock.On("AddURL", tt.body, "").Return(tt.result, nil)
+			repoMock.On("AddURL", tt.body, mock.Anything).Return(tt.result, nil)
 
 			router := setupRouter(repoMock, configuration.BaseURL)
 
@@ -218,7 +228,7 @@ func TestShortenURL(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			repoMock := new(mocks.RepositoryInterface)
-			repoMock.On("AddURL", tt.rawData, "").Return(tt.result, nil)
+			repoMock.On("AddURL", tt.rawData, mock.Anything).Return(tt.result, nil)
 
 			router := setupRouter(repoMock, configuration.BaseURL)
 
@@ -240,6 +250,86 @@ func TestShortenURL(t *testing.T) {
 			} else {
 				assert.Equal(t, tt.want.response, string(resBody))
 			}
+
+		})
+	}
+}
+
+func TestGetUserURL(t *testing.T) {
+	type want struct {
+		code        int
+		contentType string
+	}
+
+	tests := []struct {
+		name    string
+		query   string
+		body    string
+		rawData string
+		result  string
+		want    want
+	}{
+		{
+			name:    "correct GET",
+			query:   "api/shorten",
+			rawData: "http://iloverestaurant.ru/",
+			result:  "98fv58Wr3hGGIzm2-aH2zA628Ng=",
+			body:    `{"url": "http://iloverestaurant.ru/"}`,
+			want: want{
+				code:        200,
+				contentType: `application/json; charset=utf-8`,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			repoMock := new(mocks.RepositoryInterface)
+			repoMock.On("AddURL", tt.rawData, mock.Anything).Return(tt.result, nil)
+
+			router := setupRouter(repoMock, configuration.BaseURL)
+
+			body := strings.NewReader(tt.body)
+			w := httptest.NewRecorder()
+			req, _ := http.NewRequest(http.MethodPost, "/"+tt.query, body)
+			router.ServeHTTP(w, req)
+
+			type respPOST struct {
+				Url string `json:"result"`
+			}
+			header := w.Result().Header.Get("Set-Cookie")
+			temp := strings.SplitAfter(header, "userId=")
+			userID := strings.Split(temp[1], ";")[0]
+			resBody, _ := ioutil.ReadAll(w.Body)
+			var res respPOST
+			json.Unmarshal(resBody, &res)
+
+			w = httptest.NewRecorder()
+
+			req, _ = http.NewRequest(http.MethodGet, "/user/urls", nil)
+			cookie := http.Cookie{
+				Name:  "userId",
+				Value: userID,
+			}
+			req.AddCookie(&cookie)
+			fromGet := models.ResponseGetURL{
+				ShortURL:    res.Url,
+				OriginalURL: tt.rawData,
+			}
+			response := []models.ResponseGetURL{}
+			response = append(response, fromGet)
+			repoMock.On("GetUserURL", userID).Return(response)
+			router.ServeHTTP(w, req)
+
+			var resGET []models.ResponseGetURL
+			resBody, _ = ioutil.ReadAll(w.Body)
+			json.Unmarshal(resBody, &resGET)
+
+			assert.Equal(t, tt.want.code, w.Code)
+
+			assert.Contains(t, resGET, fromGet)
+
+			assert.Equal(t, tt.want.contentType, w.Header()["Content-Type"][0])
 
 		})
 	}

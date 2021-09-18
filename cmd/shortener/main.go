@@ -9,9 +9,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/configuration"
-	"github.com/p7chkn/go-musthave-shortener-tpl/internal/handlers"
-	"github.com/p7chkn/go-musthave-shortener-tpl/internal/middlewares"
-	"github.com/p7chkn/go-musthave-shortener-tpl/internal/models"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/handlers"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/middlewares"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/models"
 )
 
 func setupRouter(repo models.RepositoryInterface, cfg *configuration.Config) *gin.Engine {

@@ -71,7 +71,7 @@ func New() *Config {
 	file, err := os.Open("key")
 
 	if err != nil {
-		cfg.Key, _ = generateRandom(16)
+		cfg.Key, _ = GenerateRandom(16)
 		file, _ := os.Create("key")
 		file.Write(cfg.Key)
 	} else {
@@ -81,7 +81,7 @@ func New() *Config {
 	return &cfg
 }
 
-func generateRandom(size int) ([]byte, error) {
+func GenerateRandom(size int) ([]byte, error) {
 	b := make([]byte, size)
 	_, err := rand.Read(b)
 	if err != nil {
