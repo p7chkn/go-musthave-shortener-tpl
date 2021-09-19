@@ -7,20 +7,32 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/configuration"
-	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/models"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/shortener"
 )
+
+//go:generate mockery --name=RepositoryInterface
+type RepositoryInterface interface {
+	AddURL(longURL string, shortURL string, user string) error
+	GetURL(shortURL string) (string, error)
+	GetUserURL(user string) ([]ResponseGetURL, error)
+	Ping() error
+}
 
 type PostURL struct {
 	URL string
 }
 
+type ResponseGetURL struct {
+	ShortURL    string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
+}
+
 type Handler struct {
-	repo    models.RepositoryInterface
+	repo    RepositoryInterface
 	baseURL string
 }
 
-func New(repo models.RepositoryInterface, cfg *configuration.Config) *Handler {
+func New(repo RepositoryInterface, cfg *configuration.Config) *Handler {
 	return &Handler{
 		repo:    repo,
 		baseURL: cfg.BaseURL,
@@ -54,7 +66,11 @@ func (h *Handler) CreateShortURL(c *gin.Context) {
 	}
 	longURL := string(body)
 	shortURL := shortener.ShorterURL(longURL)
-	h.repo.AddURL(longURL, shortURL, c.GetString("userId"))
+	err = h.repo.AddURL(longURL, shortURL, c.GetString("userId"))
+	if err != nil {
+		c.IndentedJSON(http.StatusInternalServerError, err)
+		return
+	}
 	c.String(http.StatusCreated, h.baseURL+shortURL)
 }
 
@@ -78,13 +94,21 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 		return
 	}
 	shortURL := shortener.ShorterURL(url.URL)
-	h.repo.AddURL(url.URL, shortURL, c.GetString("userId"))
+	err = h.repo.AddURL(url.URL, shortURL, c.GetString("userId"))
+	if err != nil {
+		c.IndentedJSON(http.StatusInternalServerError, err)
+		return
+	}
 	result["result"] = h.baseURL + shortURL
 	c.IndentedJSON(http.StatusCreated, result)
 }
 
 func (h *Handler) GetUserURL(c *gin.Context) {
-	result := h.repo.GetUserURL(c.GetString("userId"))
+	result, err := h.repo.GetUserURL(c.GetString("userId"))
+	if err != nil {
+		c.IndentedJSON(http.StatusInternalServerError, err)
+		return
+	}
 	if len(result) == 0 {
 		c.IndentedJSON(http.StatusNoContent, result)
 		return

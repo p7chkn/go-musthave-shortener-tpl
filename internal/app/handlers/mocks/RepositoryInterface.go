@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	models "github.com/p7chkn/go-musthave-shortener-tpl/internal/app/models"
+	handlers "github.com/p7chkn/go-musthave-shortener-tpl/internal/app/handlers"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -48,19 +48,26 @@ func (_m *RepositoryInterface) GetURL(shortURL string) (string, error) {
 }
 
 // GetUserURL provides a mock function with given fields: user
-func (_m *RepositoryInterface) GetUserURL(user string) []models.ResponseGetURL {
+func (_m *RepositoryInterface) GetUserURL(user string) ([]handlers.ResponseGetURL, error) {
 	ret := _m.Called(user)
 
-	var r0 []models.ResponseGetURL
-	if rf, ok := ret.Get(0).(func(string) []models.ResponseGetURL); ok {
+	var r0 []handlers.ResponseGetURL
+	if rf, ok := ret.Get(0).(func(string) []handlers.ResponseGetURL); ok {
 		r0 = rf(user)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]models.ResponseGetURL)
+			r0 = ret.Get(0).([]handlers.ResponseGetURL)
 		}
 	}
 
-	return r0
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(user)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // Ping provides a mock function with given fields:

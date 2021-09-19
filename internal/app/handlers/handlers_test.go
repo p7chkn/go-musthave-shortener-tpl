@@ -13,14 +13,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/configuration"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/middlewares"
-	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/models"
-	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/models/mocks"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-func setupRouter(repo models.RepositoryInterface, baseURL string) (*gin.Engine, *configuration.Config) {
+func setupRouter(repo RepositoryInterface, baseURL string) (*gin.Engine, *configuration.Config) {
 	router := gin.Default()
 	key, _ := configuration.GenerateRandom(16)
 	cfg := &configuration.Config{
@@ -93,7 +91,7 @@ func TestRetriveShortURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			repoMock := new(mocks.RepositoryInterface)
+			repoMock := new(MockRepositoryInterface)
 			repoMock.On("GetURL", tt.query).Return(tt.result, tt.err)
 
 			router, _ := setupRouter(repoMock, configuration.BaseURL)
@@ -159,7 +157,7 @@ func TestCreateShortURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			repoMock := new(mocks.RepositoryInterface)
+			repoMock := new(MockRepositoryInterface)
 			repoMock.On("AddURL", tt.body, tt.result, mock.Anything).Return(nil)
 
 			router, _ := setupRouter(repoMock, configuration.BaseURL)
@@ -229,7 +227,7 @@ func TestShortenURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			repoMock := new(mocks.RepositoryInterface)
+			repoMock := new(MockRepositoryInterface)
 			repoMock.On("AddURL", tt.rawData, tt.result, mock.Anything).Return(nil)
 
 			router, _ := setupRouter(repoMock, configuration.BaseURL)
@@ -286,7 +284,7 @@ func TestGetUserURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			repoMock := new(mocks.RepositoryInterface)
+			repoMock := new(MockRepositoryInterface)
 			repoMock.On("AddURL", tt.rawData, tt.result, mock.Anything).Return(nil)
 
 			router, cfg := setupRouter(repoMock, configuration.BaseURL)
@@ -321,20 +319,20 @@ func TestGetUserURL(t *testing.T) {
 				Value: userID,
 			}
 			req.AddCookie(&cookie)
-			fromGet := models.ResponseGetURL{
+			fromGet := ResponseGetURL{
 				ShortURL:    res.URL,
 				OriginalURL: tt.rawData,
 			}
-			response := []models.ResponseGetURL{}
+			response := []ResponseGetURL{}
 			response = append(response, fromGet)
 			encryptor, err := utils.New(cfg.Key)
 			assert.Equal(t, err, nil)
 			id, err := encryptor.DecodeUUIDfromString(userID)
 			assert.Equal(t, err, nil)
-			repoMock.On("GetUserURL", id).Return(response)
+			repoMock.On("GetUserURL", id).Return(response, nil)
 			router.ServeHTTP(w, req)
 
-			var resGET []models.ResponseGetURL
+			var resGET []ResponseGetURL
 			resBody, err = ioutil.ReadAll(w.Body)
 			if err != nil {
 				t.Fatal(err)

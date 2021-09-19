@@ -4,16 +4,15 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 
 	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/configuration"
-	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/models"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/handlers"
 )
 
-func NewFileRepository(cfg *configuration.Config) models.RepositoryInterface {
-	return models.RepositoryInterface(NewRepositoryMap(cfg))
+func NewFileRepository(cfg *configuration.Config) handlers.RepositoryInterface {
+	return handlers.RepositoryInterface(NewRepositoryMap(cfg))
 }
 
 type RepositoryMap struct {
@@ -65,24 +64,17 @@ func (repo *RepositoryMap) GetURL(shortURL string) (string, error) {
 	return resultURL, nil
 }
 
-func (repo *RepositoryMap) GetUserURL(user string) []models.ResponseGetURL {
-	result := []models.ResponseGetURL{}
+func (repo *RepositoryMap) GetUserURL(user string) ([]handlers.ResponseGetURL, error) {
+	result := []handlers.ResponseGetURL{}
 	for _, url := range repo.usersURL[user] {
-		temp := models.ResponseGetURL{
+		temp := handlers.ResponseGetURL{
 			ShortURL:    repo.Cfg.BaseURL + url,
 			OriginalURL: repo.values[url],
 		}
 		result = append(result, temp)
 	}
-	fmt.Println(repo.usersURL)
 
-	// temp := models.ResponseGetURL{
-	// 	ShortURL:    fmt.Sprint(repo.usersURL),
-	// 	OriginalURL: user,
-	// }
-	// result = append(result, temp)
-
-	return result
+	return result, nil
 }
 
 func (repo *RepositoryMap) Ping() error {
