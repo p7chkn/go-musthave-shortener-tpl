@@ -81,16 +81,6 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 	h.repo.AddURL(url.URL, shortURL, c.GetString("userId"))
 	result["result"] = h.baseURL + shortURL
 	c.IndentedJSON(http.StatusCreated, result)
-
-	// err := c.BindJSON(&url)
-	// if err != nil || url.URL == "" {
-	// 	result["detail"] = "Bad request"
-	// 	c.IndentedJSON(http.StatusBadRequest, result)
-	// 	return
-	// }
-	// short := h.repo.AddURL(url.URL)
-	// result["result"] = "http://localhost:8080/" + short
-	// c.IndentedJSON(http.StatusCreated, result)
 }
 
 func (h *Handler) GetUserURL(c *gin.Context) {

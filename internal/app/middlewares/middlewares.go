@@ -76,9 +76,6 @@ func CookiMiddleware(cfg *configuration.Config) gin.HandlerFunc {
 		if err != nil {
 			return
 		}
-		if err != nil {
-			return
-		}
 		value := encryptor.EncodeUUIDtoString(id.Bytes())
 		c.SetCookie("userId", value, 864000, "/", cfg.BaseURL, false, false)
 		c.Set("userId", value)

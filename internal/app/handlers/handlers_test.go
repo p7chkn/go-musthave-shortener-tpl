@@ -293,12 +293,16 @@ func TestGetUserURL(t *testing.T) {
 
 			body := strings.NewReader(tt.body)
 			w := httptest.NewRecorder()
-			req, _ := http.NewRequest(http.MethodPost, "/"+tt.query, body)
+			req, err := http.NewRequest(http.MethodPost, "/"+tt.query, body)
+			if err != nil {
+				t.Fatal(err)
+			}
 			router.ServeHTTP(w, req)
 
 			type respPOST struct {
 				URL string `json:"result"`
 			}
+
 			header := w.Result().Header.Get("Set-Cookie")
 			temp := strings.SplitAfter(header, "userId=")
 			userID := strings.Split(temp[1], ";")[0]

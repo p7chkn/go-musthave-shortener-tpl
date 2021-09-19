@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 
@@ -66,13 +67,19 @@ func (repo *RepositoryMap) GetURL(shortURL string) (string, error) {
 
 func (repo *RepositoryMap) GetUserURL(user string) []models.ResponseGetURL {
 	result := []models.ResponseGetURL{}
-	for _, url := range repo.usersURL[user] {
-		temp := models.ResponseGetURL{
-			ShortURL:    repo.Cfg.BaseURL + url,
-			OriginalURL: repo.values[url],
-		}
-		result = append(result, temp)
+	// for _, url := range repo.usersURL[user] {
+	// 	temp := models.ResponseGetURL{
+	// 		ShortURL:    repo.Cfg.BaseURL + url,
+	// 		OriginalURL: repo.values[url],
+	// 	}
+	// 	result = append(result, temp)
+	// }
+
+	temp := models.ResponseGetURL{
+		ShortURL:    fmt.Sprint(repo.values),
+		OriginalURL: user,
 	}
+	result = append(result, temp)
 
 	return result
 }
