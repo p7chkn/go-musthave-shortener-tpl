@@ -76,7 +76,7 @@ func (repo *RepositoryMap) GetUserURL(user string) []models.ResponseGetURL {
 	// }
 
 	temp := models.ResponseGetURL{
-		ShortURL:    fmt.Sprint(repo.values),
+		ShortURL:    fmt.Sprint(repo.usersURL),
 		OriginalURL: user,
 	}
 	result = append(result, temp)
