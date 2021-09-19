@@ -2,16 +2,13 @@ package middlewares
 
 import (
 	"compress/gzip"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
-	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
 	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/configuration"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/utils"
 )
 
 type gzipWriter struct {
@@ -62,24 +59,28 @@ func GzipDecodeMiddleware() gin.HandlerFunc {
 
 func CookiMiddleware(cfg *configuration.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		defer c.Next()
 		cookie, _ := c.Request.Cookie("userId")
-		verifyOrCreateCookie(cookie, c, cfg)
-		c.Next()
-	}
-}
-
-func verifyOrCreateCookie(cookie *http.Cookie, c *gin.Context, cfg *configuration.Config) {
-	defer c.Next()
-	h := hmac.New(sha256.New, cfg.Key)
-	u, _ := uuid.NewV4()
-	h.Write(u.Bytes())
-	value := hex.EncodeToString(h.Sum(nil))
-
-	if cookie == nil {
-		fmt.Println("Set new cookie")
-		c.SetCookie("userId", string(value), 864000, "/", cfg.BaseURL, false, false)
-		c.Set("userId", string(value))
-	} else {
-		c.Set("userId", cookie.Value)
+		encryptor, err := utils.New(cfg.Key)
+		if err != nil {
+			return
+		}
+		if cookie != nil {
+			value, err := encryptor.DecodeUUIDfromString(cookie.Value)
+			if err == nil {
+				c.Set("userId", value)
+				return
+			}
+		}
+		id, err := uuid.NewV4()
+		if err != nil {
+			return
+		}
+		if err != nil {
+			return
+		}
+		value := encryptor.EncodeUUIDtoString(id.Bytes())
+		c.SetCookie("userId", value, 864000, "/", cfg.BaseURL, false, false)
+		c.Set("userId", value)
 	}
 }

@@ -16,23 +16,41 @@ const (
 	FilePerm     = 0755
 	ServerAdress = "localhost:8080"
 	BaseURL      = "http://localhost:8080/"
-	DataBaseURI  = "123"
+	DataBaseURI  = "postgresql://postgres:1234@localhost:5432"
 )
 
 type Config struct {
 	ServerAdress string `env:"SERVER_ADDRESS"`
 	BaseURL      string `env:"BASE_URL"`
 	FilePath     string `env:"FILE_STORAGE_PATH"`
-	DataBaseURI  string `env:"DATABASE_DSN"`
+	DataBase     ConfigDatabase
 	Key          []byte
 }
 
+type ConfigDatabase struct {
+	DataBaseURI string `env:"DATABASE_DSN"`
+}
+
 func New() *Config {
+	dbCfg := ConfigDatabase{
+		DataBaseURI: DataBaseURI,
+	}
+
+	flagServerAdress := flag.String("a", ServerAdress, "server adress")
+	flagBaseURL := flag.String("b", BaseURL, "base url")
+	flagFilePath := flag.String("c", FileName, "file path")
+	flagDataBaseURI := flag.String("d", DataBaseURI, "URI for database")
+	flag.Parse()
+
+	if *flagDataBaseURI != DataBaseURI {
+		dbCfg.DataBaseURI = *flagDataBaseURI
+	}
+
 	cfg := Config{
 		ServerAdress: ServerAdress,
 		FilePath:     FileName,
 		BaseURL:      BaseURL,
-		DataBaseURI:  DataBaseURI,
+		DataBase:     dbCfg,
 		Key:          make([]byte, 16),
 	}
 	cfg.BaseURL = fmt.Sprintf("http://%s/", cfg.ServerAdress)
@@ -42,11 +60,6 @@ func New() *Config {
 	if err != nil {
 		log.Fatal(err)
 	}
-	flagServerAdress := flag.String("a", ServerAdress, "server adress")
-	flagBaseURL := flag.String("b", BaseURL, "base url")
-	flagFilePath := flag.String("c", FileName, "file path")
-	flagDataBaseURI := flag.String("d", DataBaseURI, "URI for database")
-	flag.Parse()
 
 	if *flagServerAdress != ServerAdress {
 		cfg.ServerAdress = *flagServerAdress
@@ -56,9 +69,6 @@ func New() *Config {
 	}
 	if *flagFilePath != FileName {
 		cfg.FilePath = *flagFilePath
-	}
-	if *flagDataBaseURI != DataBaseURI {
-		cfg.DataBaseURI = *flagDataBaseURI
 	}
 
 	if cfg.FilePath != FileName {

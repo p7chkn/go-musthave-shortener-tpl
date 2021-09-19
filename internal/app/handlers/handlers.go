@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/configuration"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/models"
-	"github.com/p7chkn/go-musthave-shortener-tpl/internal/database"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/shortener"
 )
 
 type PostURL struct {
@@ -16,16 +16,14 @@ type PostURL struct {
 }
 
 type Handler struct {
-	repo        models.RepositoryInterface
-	baseURL     string
-	databaseURI string
+	repo    models.RepositoryInterface
+	baseURL string
 }
 
 func New(repo models.RepositoryInterface, cfg *configuration.Config) *Handler {
 	return &Handler{
-		repo:        repo,
-		baseURL:     cfg.BaseURL,
-		databaseURI: cfg.DataBaseURI,
+		repo:    repo,
+		baseURL: cfg.BaseURL,
 	}
 }
 
@@ -54,8 +52,10 @@ func (h *Handler) CreateShortURL(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, result)
 		return
 	}
-	short := h.repo.AddURL(string(body), c.GetString("userId"))
-	c.String(http.StatusCreated, h.baseURL+short)
+	longURL := string(body)
+	shortURL := shortener.ShorterURL(longURL)
+	h.repo.AddURL(longURL, shortURL, c.GetString("userId"))
+	c.String(http.StatusCreated, h.baseURL+shortURL)
 }
 
 func (h *Handler) ShortenURL(c *gin.Context) {
@@ -77,9 +77,9 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, result)
 		return
 	}
-
-	short := h.repo.AddURL(url.URL, c.GetString("userId"))
-	result["result"] = h.baseURL + short
+	shortURL := shortener.ShorterURL(url.URL)
+	h.repo.AddURL(url.URL, shortURL, c.GetString("userId"))
+	result["result"] = h.baseURL + shortURL
 	c.IndentedJSON(http.StatusCreated, result)
 
 	// err := c.BindJSON(&url)
@@ -103,7 +103,7 @@ func (h *Handler) GetUserURL(c *gin.Context) {
 }
 
 func (h *Handler) PingDB(c *gin.Context) {
-	err := database.Ping(h.databaseURI)
+	err := h.repo.Ping()
 	if err != nil {
 		c.String(http.StatusInternalServerError, "")
 		return

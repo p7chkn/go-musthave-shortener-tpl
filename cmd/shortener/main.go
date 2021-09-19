@@ -12,6 +12,7 @@ import (
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/handlers"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/middlewares"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/models"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/filebase"
 )
 
 func setupRouter(repo models.RepositoryInterface, cfg *configuration.Config) *gin.Engine {
@@ -38,7 +39,7 @@ func main() {
 
 	cfg := configuration.New()
 
-	handler := setupRouter(models.NewFileRepository(cfg), cfg)
+	handler := setupRouter(filebase.NewFileRepository(cfg), cfg)
 
 	server := &http.Server{
 		Addr:    cfg.ServerAdress,
