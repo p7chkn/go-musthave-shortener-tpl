@@ -28,6 +28,7 @@ func setupRouter(repo handlers.RepositoryInterface, cfg *configuration.Config) *
 	router.POST("/api/shorten", handler.ShortenURL)
 	router.GET("/user/urls", handler.GetUserURL)
 	router.GET("/ping", handler.PingDB)
+	router.POST("/api/shorten/batch", handler.CreateBatch)
 
 	router.HandleMethodNotAllowed = true
 

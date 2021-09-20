@@ -81,6 +81,10 @@ func (repo *RepositoryMap) Ping() error {
 	return nil
 }
 
+func (db *RepositoryMap) AddManyURL(urls []handlers.ManyPostURL, user string) ([]handlers.ManyPostResponse, error) {
+	return nil, nil
+}
+
 type row struct {
 	ShortURL string `json:"short_url"`
 	LongURL  string `json:"long_url"`

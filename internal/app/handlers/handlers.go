@@ -10,16 +10,27 @@ import (
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/shortener"
 )
 
-//go:generate mockery --name=RepositoryInterface
+//go:generate mockery --name=RepositoryInterface --structname=MockRepositoryInterface --inpackage
 type RepositoryInterface interface {
 	AddURL(longURL string, shortURL string, user string) error
 	GetURL(shortURL string) (string, error)
 	GetUserURL(user string) ([]ResponseGetURL, error)
+	AddManyURL(urls []ManyPostURL, user string) ([]ManyPostResponse, error)
 	Ping() error
 }
 
 type PostURL struct {
 	URL string
+}
+
+type ManyPostURL struct {
+	CorrelationID string `json:"correlation_id"`
+	OriginalURL   string `json:"original_url"`
+}
+
+type ManyPostResponse struct {
+	CorrelationID string `json:"correlation_id"`
+	ShortURL      string `json:"short_url"`
 }
 
 type ResponseGetURL struct {
@@ -123,4 +134,24 @@ func (h *Handler) PingDB(c *gin.Context) {
 		return
 	}
 	c.String(http.StatusOK, "")
+}
+
+func (h *Handler) CreateBatch(c *gin.Context) {
+	var data []ManyPostURL
+
+	c.BindJSON(&data)
+	response, err := h.repo.AddManyURL(data, c.GetString("userId"))
+	if err != nil {
+		message := make(map[string]string)
+		message["detail"] = err.Error()
+		c.IndentedJSON(http.StatusBadRequest, message)
+		return
+	}
+	if response == nil {
+		message := make(map[string]string)
+		message["detail"] = "Bad request"
+		c.IndentedJSON(http.StatusBadRequest, message)
+		return
+	}
+	c.IndentedJSON(http.StatusCreated, response)
 }

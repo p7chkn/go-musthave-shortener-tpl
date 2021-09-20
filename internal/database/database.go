@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/configuration"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/handlers"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/shortener"
 )
 
 type PosrgreDataBase struct {
@@ -116,6 +117,35 @@ func (db *PosrgreDataBase) GetUserURL(user string) ([]handlers.ResponseGetURL, e
 		result = append(result, u)
 	}
 
+	return result, nil
+}
+
+func (db *PosrgreDataBase) AddManyURL(urls []handlers.ManyPostURL, user string) ([]handlers.ManyPostResponse, error) {
+	conn, ctx := db.connect()
+	defer conn.Close(ctx)
+
+	result := []handlers.ManyPostResponse{}
+	tx, err := conn.Begin(ctx)
+	defer tx.Rollback(ctx)
+
+	sqlAddRow := `INSERT INTO urls (user_id, origin_url, short_url)
+	VALUES ($1, $2, $3)`
+
+	for _, u := range urls {
+		shortURL := shortener.ShorterURL(u.OriginalURL)
+		if _, err = tx.Exec(ctx, sqlAddRow, user, u.OriginalURL, shortURL); err != nil {
+			return nil, err
+		}
+		result = append(result, handlers.ManyPostResponse{
+			CorrelationID: u.CorrelationID,
+			ShortURL:      shortURL,
+		})
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	tx.Commit(ctx)
 	return result, nil
 }
 
