@@ -10,17 +10,26 @@ type MockRepositoryInterface struct {
 }
 
 // AddManyURL provides a mock function with given fields: urls, user
-func (_m *MockRepositoryInterface) AddManyURL(urls []ManyPostURL, user string) error {
+func (_m *MockRepositoryInterface) AddManyURL(urls []ManyPostURL, user string) ([]ManyPostResponse, error) {
 	ret := _m.Called(urls, user)
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func([]ManyPostURL, string) error); ok {
+	var r0 []ManyPostResponse
+	if rf, ok := ret.Get(0).(func([]ManyPostURL, string) []ManyPostResponse); ok {
 		r0 = rf(urls, user)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]ManyPostResponse)
+		}
 	}
 
-	return r0
+	var r1 error
+	if rf, ok := ret.Get(1).(func([]ManyPostURL, string) error); ok {
+		r1 = rf(urls, user)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // AddURL provides a mock function with given fields: longURL, shortURL, user

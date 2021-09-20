@@ -12,7 +12,8 @@ import (
 )
 
 type PosrgreDataBase struct {
-	URI string
+	URI     string
+	baseURL string
 }
 
 func NewDatabaseRepository(cfg *configuration.Config) handlers.RepositoryInterface {
@@ -21,7 +22,8 @@ func NewDatabaseRepository(cfg *configuration.Config) handlers.RepositoryInterfa
 
 func NewDatabase(cfg *configuration.Config) *PosrgreDataBase {
 	result := &PosrgreDataBase{
-		URI: cfg.DataBase.DataBaseURI,
+		URI:     cfg.DataBase.DataBaseURI,
+		baseURL: cfg.BaseURL,
 	}
 	result.setUp()
 	return result
@@ -114,6 +116,7 @@ func (db *PosrgreDataBase) GetUserURL(user string) ([]handlers.ResponseGetURL, e
 		if err != nil {
 			return result, err
 		}
+		u.ShortURL = db.baseURL + u.ShortURL
 		result = append(result, u)
 	}
 
@@ -138,7 +141,7 @@ func (db *PosrgreDataBase) AddManyURL(urls []handlers.ManyPostURL, user string) 
 		}
 		result = append(result, handlers.ManyPostResponse{
 			CorrelationID: u.CorrelationID,
-			ShortURL:      shortURL,
+			ShortURL:      db.baseURL + shortURL,
 		})
 	}
 
