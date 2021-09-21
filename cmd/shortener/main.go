@@ -2,16 +2,21 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 
+	_ "github.com/lib/pq"
+
 	"github.com/gin-gonic/gin"
 	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/configuration"
+	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/services"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/handlers"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/middlewares"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/database"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/filebase"
 )
 
 func setupRouter(repo handlers.RepositoryInterface, cfg *configuration.Config) *gin.Engine {
@@ -39,8 +44,20 @@ func main() {
 
 	cfg := configuration.New()
 
-	// handler := setupRouter(filebase.NewFileRepository(cfg), cfg)
-	handler := setupRouter(database.NewDatabaseRepository(cfg), cfg)
+	var handler *gin.Engine
+
+	if cfg.DataBase.DataBaseURI != "" {
+		db, err := sql.Open("postgres", cfg.DataBase.DataBaseURI)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer db.Close()
+		services.SetUpDataBase(db)
+
+		handler = setupRouter(database.NewDatabaseRepository(cfg.BaseURL, db), cfg)
+	} else {
+		handler = setupRouter(filebase.NewFileRepository(cfg), cfg)
+	}
 
 	server := &http.Server{
 		Addr:    cfg.ServerAdress,
@@ -50,7 +67,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	go func() {
-		log.Fatal(server.ListenAndServe())
+		log.Println(server.ListenAndServe())
 		cancel()
 	}()
 

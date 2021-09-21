@@ -81,7 +81,7 @@ func (repo *RepositoryMap) Ping() error {
 	return nil
 }
 
-func (db *RepositoryMap) AddManyURL(urls []handlers.ManyPostURL, user string) ([]handlers.ManyPostResponse, error) {
+func (repo *RepositoryMap) AddManyURL(urls []handlers.ManyPostURL, user string) ([]handlers.ManyPostResponse, error) {
 	return nil, nil
 }
 

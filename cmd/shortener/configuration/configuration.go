@@ -16,7 +16,8 @@ const (
 	FilePerm     = 0755
 	ServerAdress = "localhost:8080"
 	BaseURL      = "http://localhost:8080/"
-	DataBaseURI  = "postgresql://postgres:1234@localhost:5432"
+	DataBaseURI  = ""
+	// DataBaseURI  = "postgresql://postgres:1234@localhost:5432?sslmode=disable"
 )
 
 type Config struct {
