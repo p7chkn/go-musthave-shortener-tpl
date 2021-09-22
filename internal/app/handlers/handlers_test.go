@@ -10,8 +10,10 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gofrs/uuid"
 	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/configuration"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/middlewares"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -233,34 +235,43 @@ func TestGetUserURL(t *testing.T) {
 	tests := []struct {
 		name     string
 		query    string
-		userID   string
-		response string
+		response []ResponseGetURL
 		want     want
 	}{
 		{
-			name:   "correct GET",
-			query:  "user/urls",
-			userID: "",
+			name:  "correct GET",
+			query: "user/urls",
+			response: []ResponseGetURL{
+				{
+					ShortURL:    "http://localhost:8080/1yhVmSPGQlZn3EnrI2kd7Oxu5UM=",
+					OriginalURL: "http://hbqouwjbx5jl.ru/lkm0skvkix1ejv",
+				}},
 			want: want{
 				code:        200,
 				contentType: `application/json; charset=utf-8`,
-				response:    "",
+				response: `[{
+					"short_url": "http://localhost:8080/1yhVmSPGQlZn3EnrI2kd7Oxu5UM=",
+					"original_url": "http://hbqouwjbx5jl.ru/lkm0skvkix1ejv"
+				}]`,
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			userID, _ := uuid.NewV4()
 			repoMock := new(MockRepositoryInterface)
-			repoMock.On("GetUserURL", tt.userID).Return(tt.response, nil)
-			router, _ := setupRouter(repoMock, configuration.BaseURL)
+			repoMock.On("GetUserURL", userID.String()).Return(tt.response, nil)
+			router, cfg := setupRouter(repoMock, configuration.BaseURL)
+
+			encoder, _ := utils.New(cfg.Key)
 
 			cookie := http.Cookie{
 				Name:  "userId",
-				Value: tt.userID,
+				Value: encoder.EncodeUUIDtoString(userID.Bytes()),
 			}
 
 			w := httptest.NewRecorder()
-			req, _ := http.NewRequest(http.MethodPost, "/"+tt.query, nil)
+			req, _ := http.NewRequest(http.MethodGet, "/"+tt.query, nil)
 			req.AddCookie(&cookie)
 
 			router.ServeHTTP(w, req)
@@ -271,7 +282,7 @@ func TestGetUserURL(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			assert.Equal(t, tt.want.response, string(resBody))
+			assert.JSONEq(t, tt.want.response, string(resBody))
 
 		})
 	}
