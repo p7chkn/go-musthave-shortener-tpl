@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -30,6 +29,7 @@ func setupRouter(repo RepositoryInterface, baseURL string) (*gin.Engine, *config
 	router.POST("/", handler.CreateShortURL)
 	router.POST("/api/shorten", handler.ShortenURL)
 	router.GET("/user/urls", handler.GetUserURL)
+	router.POST("/api/shorten/batch", handler.CreateBatch)
 	router.HandleMethodNotAllowed = true
 	return router, cfg
 }
@@ -228,82 +228,81 @@ func TestGetUserURL(t *testing.T) {
 	type want struct {
 		code        int
 		contentType string
+		response    string
 	}
 	tests := []struct {
-		name    string
-		query   string
-		body    string
-		rawData string
-		result  string
-		want    want
+		name     string
+		query    string
+		userID   string
+		response string
+		want     want
 	}{
 		{
-			name:    "correct GET",
-			query:   "api/shorten",
-			rawData: "http://iloverestaurant.ru/",
-			result:  "98fv58Wr3hGGIzm2-aH2zA628Ng=",
-			body:    `{"url": "http://iloverestaurant.ru/"}`,
+			name:   "correct GET",
+			query:  "user/urls",
+			userID: "",
 			want: want{
 				code:        200,
 				contentType: `application/json; charset=utf-8`,
+				response:    "",
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repoMock := new(MockRepositoryInterface)
-			repoMock.On("AddURL", tt.rawData, tt.result, mock.Anything).Return(nil)
+			repoMock.On("GetUserURL", tt.userID).Return(tt.response, nil)
 			router, _ := setupRouter(repoMock, configuration.BaseURL)
 
-			body := strings.NewReader(tt.body)
-			w := httptest.NewRecorder()
-			req, err := http.NewRequest(http.MethodPost, "/"+tt.query, body)
-			if err != nil {
-				t.Fatal(err)
+			cookie := http.Cookie{
+				Name:  "userId",
+				Value: tt.userID,
 			}
+
+			w := httptest.NewRecorder()
+			req, _ := http.NewRequest(http.MethodPost, "/"+tt.query, nil)
+			req.AddCookie(&cookie)
+
 			router.ServeHTTP(w, req)
 
-			type respPOST struct {
-				URL string `json:"result"`
-			}
-
-			header := w.Result().Header.Get("Set-Cookie")
-			temp := strings.SplitAfter(header, "userId=")
-			userID := strings.Split(temp[1], ";")[0]
+			assert.Equal(t, tt.want.contentType, w.Header()["Content-Type"][0])
+			assert.Equal(t, tt.want.code, w.Code)
 			resBody, err := ioutil.ReadAll(w.Body)
 			if err != nil {
 				t.Fatal(err)
 			}
-			var res respPOST
-			json.Unmarshal(resBody, &res)
-			w = httptest.NewRecorder()
-			req, _ = http.NewRequest(http.MethodGet, "/user/urls", nil)
-			cookie := http.Cookie{
-				Name:  "userId",
-				Value: userID,
-			}
-			req.AddCookie(&cookie)
-			// fromGet := ResponseGetURL{
-			// 	ShortURL:    res.URL,
-			// 	OriginalURL: tt.rawData,
-			// }
-			// response := []ResponseGetURL{}
-			// response = append(response, fromGet)
-			// encryptor, err := utils.New(cfg.Key)
-			// assert.Equal(t, err, nil)
-			// id, err := encryptor.DecodeUUIDfromString(userID)
-			// assert.Equal(t, err, nil)
-			// repoMock.On("GetUserURL", id).Return(response)
-			// router.ServeHTTP(w, req)
-			// var resGET []ResponseGetURL
-			// resBody, err = ioutil.ReadAll(w.Body)
-			// if err != nil {
-			// 	t.Fatal(err)
-			// }
-			// json.Unmarshal(resBody, &resGET)
-			// assert.Equal(t, tt.want.code, w.Code)
-			// assert.Contains(t, resGET, fromGet)
-			// assert.Equal(t, tt.want.contentType, w.Header()["Content-Type"][0])
+			assert.Equal(t, tt.want.response, string(resBody))
+
+		})
+	}
+}
+
+func TestCreateBatch(t *testing.T) {
+	type want struct {
+		code        int
+		contentType string
+		response    string
+	}
+	tests := []struct {
+		name     string
+		query    string
+		response string
+		want     want
+	}{
+		{
+			name:  "correct POST",
+			query: "api/shorten/batch",
+			want: want{
+				code:        200,
+				contentType: `application/json; charset=utf-8`,
+				response:    "",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
 		})
 	}
 }
