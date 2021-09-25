@@ -81,7 +81,7 @@ func (db *PosrgreDataBase) GetUserURL(user string) ([]handlers.ResponseGetURL, e
 	sqlGetUserURL := `SELECT origin_url, short_url FROM urls WHERE user_id=$1;`
 	rows, err := db.conn.QueryContext(ctx, sqlGetUserURL, user)
 	if err != nil {
-		return result, err
+		return nil, err
 	}
 	defer rows.Close()
 
