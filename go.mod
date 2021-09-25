@@ -7,6 +7,7 @@ require (
 	github.com/gin-gonic/gin v1.7.4
 	github.com/gofrs/uuid v4.0.0+incompatible
 	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/jackc/pgerrcode v0.0.0-20201024163028-a0d42d470451
 	github.com/json-iterator/go v1.1.11 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/lib/pq v1.10.3

@@ -295,24 +295,107 @@ func TestCreateBatch(t *testing.T) {
 		response    string
 	}
 	tests := []struct {
-		name     string
-		query    string
-		response string
-		want     want
+		name         string
+		query        string
+		body         string
+		mockData     []ManyPostURL
+		mockResponce []ManyPostResponse
+		want         want
 	}{
 		{
 			name:  "correct POST",
 			query: "api/shorten/batch",
+			body: `[
+				{
+					"correlation_id": "1",
+					"original_url": "https://www.postgresqltutorial.com/postgresql-create-table/"
+				},
+				  {
+					"correlation_id": "2",
+					"original_url": "https://twitter.com/home"
+				},
+				  {
+					"correlation_id": "3",
+					"original_url": "https://www.gismeteo.ru/weather-sankt-peterburg-4079/10-days/"
+				}
+			] `,
+			mockData: []ManyPostURL{
+				{
+					CorrelationID: "1",
+					OriginalURL:   "https://www.postgresqltutorial.com/postgresql-create-table/",
+				},
+				{
+					CorrelationID: "2",
+					OriginalURL:   "https://twitter.com/home",
+				},
+				{
+					CorrelationID: "3",
+					OriginalURL:   "https://www.gismeteo.ru/weather-sankt-peterburg-4079/10-days/",
+				},
+			},
+			mockResponce: []ManyPostResponse{
+				{
+					CorrelationID: "1",
+					ShortURL:      "http://localhost:8080/Kkm_RJeyfdOxwVZoQA1k9E8Sg8Q=",
+				},
+				{
+					CorrelationID: "2",
+					ShortURL:      "http://localhost:8080/RrbgmrELxXSzwnYKBcJInKtp-_I=",
+				},
+				{
+					CorrelationID: "3",
+					ShortURL:      "http://localhost:8080/LuHrl3OJA_f61piIambybX8cNvA=",
+				},
+			},
 			want: want{
-				code:        200,
+				code:        201,
 				contentType: `application/json; charset=utf-8`,
-				response:    "",
+				response: `[
+					{
+						"correlation_id": "1",
+						"short_url": "http://localhost:8080/Kkm_RJeyfdOxwVZoQA1k9E8Sg8Q="
+					},
+					{
+						"correlation_id": "2",
+						"short_url": "http://localhost:8080/RrbgmrELxXSzwnYKBcJInKtp-_I="
+					},
+					{
+						"correlation_id": "3",
+						"short_url": "http://localhost:8080/LuHrl3OJA_f61piIambybX8cNvA="
+					}
+				]`,
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			userID, _ := uuid.NewV4()
+			repoMock := new(MockRepositoryInterface)
+			repoMock.On("AddManyURL", tt.mockData, userID.String()).Return(tt.mockResponce, nil)
+
+			router, cfg := setupRouter(repoMock, configuration.BaseURL)
+			encoder, _ := utils.New(cfg.Key)
+
+			cookie := http.Cookie{
+				Name:  "userId",
+				Value: encoder.EncodeUUIDtoString(userID.Bytes()),
+			}
+
+			body := strings.NewReader(tt.body)
+			w := httptest.NewRecorder()
+			req, _ := http.NewRequest(http.MethodPost, "/"+tt.query, body)
+			req.AddCookie(&cookie)
+
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.want.contentType, w.Header()["Content-Type"][0])
+			assert.Equal(t, tt.want.code, w.Code)
+			resBody, err := ioutil.ReadAll(w.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			assert.JSONEq(t, tt.want.response, string(resBody))
 
 		})
 	}

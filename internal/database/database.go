@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/jackc/pgerrcode"
+	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/handlers"
@@ -49,6 +51,12 @@ func (db *PosrgreDataBase) AddURL(longURL string, shortURL string, user string) 
 				  VALUES ($1, $2, $3)`
 
 	_, err := db.conn.ExecContext(ctx, sqlAddRow, user, longURL, shortURL)
+
+	if err, ok := err.(*pq.Error); ok {
+		if err.Code == pgerrcode.UniqueViolation {
+			return handlers.NewUniqueConstraintError(err)
+		}
+	}
 
 	return err
 }
@@ -105,6 +113,9 @@ func (db *PosrgreDataBase) AddManyURL(urls []handlers.ManyPostURL, user string) 
 	defer tx.Rollback()
 
 	stmt, err := tx.PrepareContext(ctx, `INSERT INTO urls (user_id, origin_url, short_url) VALUES ($1, $2, $3)`)
+	// _ = ` INSERT INTO urls (user_id, origin_url, short_url) VALUES ('a72c8923-3220-e8b9-0357-da73b5e3373c', 'http://iloverestaurant.ru/','98fv58Wr3hGGIzm2-aH2zA628Ng=')
+	// ON CONFLICT (short_url)
+	// DO SELECT * FROM urls;`
 
 	if err != nil {
 		return nil, err
