@@ -8,7 +8,6 @@ import (
 
 	"github.com/jackc/pgerrcode"
 	"github.com/lib/pq"
-	_ "github.com/lib/pq"
 
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/handlers"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/shortener"
