@@ -22,7 +22,7 @@ import (
 func setupRouter(repo handlers.RepositoryInterface, cfg *configuration.Config) *gin.Engine {
 	router := gin.Default()
 
-	handler := handlers.New(repo, cfg)
+	handler := handlers.New(repo, cfg.BaseURL)
 
 	router.Use(middlewares.GzipEncodeMiddleware())
 	router.Use(middlewares.GzipDecodeMiddleware())
@@ -42,6 +42,8 @@ func setupRouter(repo handlers.RepositoryInterface, cfg *configuration.Config) *
 
 func main() {
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	cfg := configuration.New()
 
 	var handler *gin.Engine
@@ -52,19 +54,17 @@ func main() {
 			log.Fatal(err)
 		}
 		defer db.Close()
-		services.SetUpDataBase(db)
+		services.SetUpDataBase(db, ctx)
 
 		handler = setupRouter(database.NewDatabaseRepository(cfg.BaseURL, db), cfg)
 	} else {
-		handler = setupRouter(filebase.NewFileRepository(cfg), cfg)
+		handler = setupRouter(filebase.NewFileRepository(cfg.FilePath, cfg.BaseURL), cfg)
 	}
 
 	server := &http.Server{
 		Addr:    cfg.ServerAdress,
 		Handler: handler,
 	}
-
-	ctx, cancel := context.WithCancel(context.Background())
 
 	go func() {
 		log.Println(server.ListenAndServe())

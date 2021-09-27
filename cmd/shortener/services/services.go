@@ -6,9 +6,7 @@ import (
 	"log"
 )
 
-func SetUpDataBase(db *sql.DB) error {
-
-	ctx := context.Background()
+func SetUpDataBase(db *sql.DB, ctx context.Context) error {
 
 	var extention string
 	query := db.QueryRowContext(ctx, "SELECT 'exists' FROM pg_extension WHERE extname='uuid-ossp';")

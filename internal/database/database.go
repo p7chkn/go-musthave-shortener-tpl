@@ -30,9 +30,7 @@ func NewDatabase(baseURL string, db *sql.DB) *PosrgreDataBase {
 	return result
 }
 
-func (db *PosrgreDataBase) Ping() error {
-
-	ctx := context.Background()
+func (db *PosrgreDataBase) Ping(ctx context.Context) error {
 
 	err := db.conn.PingContext(ctx)
 	if err != nil {
@@ -42,9 +40,7 @@ func (db *PosrgreDataBase) Ping() error {
 	return nil
 }
 
-func (db *PosrgreDataBase) AddURL(longURL string, shortURL string, user string) error {
-
-	ctx := context.Background()
+func (db *PosrgreDataBase) AddURL(longURL string, shortURL string, user string, ctx context.Context) error {
 
 	sqlAddRow := `INSERT INTO urls (user_id, origin_url, short_url)
 				  VALUES ($1, $2, $3)`
@@ -60,9 +56,8 @@ func (db *PosrgreDataBase) AddURL(longURL string, shortURL string, user string) 
 	return err
 }
 
-func (db *PosrgreDataBase) GetURL(shortURL string) (string, error) {
+func (db *PosrgreDataBase) GetURL(shortURL string, ctx context.Context) (string, error) {
 
-	ctx := context.Background()
 	sqlGetURLRow := `SELECT origin_url FROM urls WHERE short_url=$1 FETCH FIRST ROW ONLY;`
 	query := db.conn.QueryRowContext(ctx, sqlGetURLRow, shortURL)
 	result := ""
@@ -73,9 +68,8 @@ func (db *PosrgreDataBase) GetURL(shortURL string) (string, error) {
 	return result, nil
 }
 
-func (db *PosrgreDataBase) GetUserURL(user string) ([]handlers.ResponseGetURL, error) {
+func (db *PosrgreDataBase) GetUserURL(user string, ctx context.Context) ([]handlers.ResponseGetURL, error) {
 
-	ctx := context.Background()
 	result := []handlers.ResponseGetURL{}
 
 	sqlGetUserURL := `SELECT origin_url, short_url FROM urls WHERE user_id=$1;`
@@ -101,9 +95,7 @@ func (db *PosrgreDataBase) GetUserURL(user string) ([]handlers.ResponseGetURL, e
 	return result, nil
 }
 
-func (db *PosrgreDataBase) AddManyURL(urls []handlers.ManyPostURL, user string) ([]handlers.ManyPostResponse, error) {
-
-	ctx := context.Background()
+func (db *PosrgreDataBase) AddManyURL(urls []handlers.ManyPostURL, user string, ctx context.Context) ([]handlers.ManyPostResponse, error) {
 
 	result := []handlers.ManyPostResponse{}
 	tx, err := db.conn.Begin()

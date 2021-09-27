@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,17 +9,16 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/configuration"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/shortener"
 )
 
 //go:generate mockery --name=RepositoryInterface --structname=MockRepositoryInterface --inpackage
 type RepositoryInterface interface {
-	AddURL(longURL string, shortURL string, user string) error
-	GetURL(shortURL string) (string, error)
-	GetUserURL(user string) ([]ResponseGetURL, error)
-	AddManyURL(urls []ManyPostURL, user string) ([]ManyPostResponse, error)
-	Ping() error
+	AddURL(longURL string, shortURL string, user string, ctx context.Context) error
+	GetURL(shortURL string, ctx context.Context) (string, error)
+	GetUserURL(user string, ctx context.Context) ([]ResponseGetURL, error)
+	AddManyURL(urls []ManyPostURL, user string, ctx context.Context) ([]ManyPostResponse, error)
+	Ping(ctx context.Context) error
 }
 
 type PostURL struct {
@@ -63,16 +63,16 @@ type Handler struct {
 	baseURL string
 }
 
-func New(repo RepositoryInterface, cfg *configuration.Config) *Handler {
+func New(repo RepositoryInterface, basURL string) *Handler {
 	return &Handler{
 		repo:    repo,
-		baseURL: cfg.BaseURL,
+		baseURL: basURL,
 	}
 }
 
 func (h *Handler) RetriveShortURL(c *gin.Context) {
 	result := map[string]string{}
-	long, err := h.repo.GetURL(c.Param("id"))
+	long, err := h.repo.GetURL(c.Param("id"), c.Request.Context())
 
 	if err != nil {
 		result["detail"] = err.Error()
@@ -97,7 +97,7 @@ func (h *Handler) CreateShortURL(c *gin.Context) {
 	}
 	longURL := string(body)
 	shortURL := shortener.ShorterURL(longURL)
-	err = h.repo.AddURL(longURL, shortURL, c.GetString("userId"))
+	err = h.repo.AddURL(longURL, shortURL, c.GetString("userId"), c.Request.Context())
 	if err != nil {
 		var ue *UniqueConstraintError
 		if errors.As(err, &ue) {
@@ -130,7 +130,7 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 		return
 	}
 	shortURL := shortener.ShorterURL(url.URL)
-	err = h.repo.AddURL(url.URL, shortURL, c.GetString("userId"))
+	err = h.repo.AddURL(url.URL, shortURL, c.GetString("userId"), c.Request.Context())
 	if err != nil {
 		var ue *UniqueConstraintError
 		if errors.As(err, &ue) {
@@ -146,7 +146,7 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 }
 
 func (h *Handler) GetUserURL(c *gin.Context) {
-	result, err := h.repo.GetUserURL(c.GetString("userId"))
+	result, err := h.repo.GetUserURL(c.GetString("userId"), c.Request.Context())
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, err)
 		return
@@ -159,7 +159,7 @@ func (h *Handler) GetUserURL(c *gin.Context) {
 }
 
 func (h *Handler) PingDB(c *gin.Context) {
-	err := h.repo.Ping()
+	err := h.repo.Ping(c.Request.Context())
 	if err != nil {
 		c.String(http.StatusInternalServerError, "")
 		return
@@ -171,7 +171,7 @@ func (h *Handler) CreateBatch(c *gin.Context) {
 	var data []ManyPostURL
 
 	c.BindJSON(&data)
-	response, err := h.repo.AddManyURL(data, c.GetString("userId"))
+	response, err := h.repo.AddManyURL(data, c.GetString("userId"), c.Request.Context())
 	if err != nil {
 		message := make(map[string]string)
 		message["detail"] = err.Error()

@@ -2,6 +2,7 @@ package filebase
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"log"
@@ -11,23 +12,25 @@ import (
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/handlers"
 )
 
-func NewFileRepository(cfg *configuration.Config) handlers.RepositoryInterface {
-	return handlers.RepositoryInterface(NewRepositoryMap(cfg))
+func NewFileRepository(filePath string, baseURL string) handlers.RepositoryInterface {
+	return handlers.RepositoryInterface(NewRepositoryMap(filePath, baseURL))
 }
 
 type RepositoryMap struct {
 	values   map[string]string
-	Cfg      *configuration.Config
+	filePath string
+	baseURL  string
 	usersURL map[string][]string
 }
 
-func NewRepositoryMap(cfg *configuration.Config) *RepositoryMap {
+func NewRepositoryMap(filePath string, baseURL string) *RepositoryMap {
 	repo := RepositoryMap{
 		values:   map[string]string{},
-		Cfg:      cfg,
+		filePath: filePath,
+		baseURL:  baseURL,
 		usersURL: map[string][]string{},
 	}
-	file, err := os.OpenFile(cfg.FilePath, os.O_RDONLY|os.O_CREATE, configuration.FilePerm)
+	file, err := os.OpenFile(repo.filePath, os.O_RDONLY|os.O_CREATE, configuration.FilePerm)
 	if err != nil {
 		log.Printf("Error with reading file: %v\n", err)
 	}
@@ -49,14 +52,14 @@ func NewRepositoryMap(cfg *configuration.Config) *RepositoryMap {
 	return &repo
 }
 
-func (repo *RepositoryMap) AddURL(longURL string, shortURL string, user string) error {
+func (repo *RepositoryMap) AddURL(longURL string, shortURL string, user string, ctx context.Context) error {
 	repo.values[shortURL] = longURL
-	repo.writeRow(longURL, shortURL, repo.Cfg.FilePath, user)
+	repo.writeRow(longURL, shortURL, repo.filePath, user)
 	repo.usersURL[user] = append(repo.usersURL[user], shortURL)
 	return nil
 }
 
-func (repo *RepositoryMap) GetURL(shortURL string) (string, error) {
+func (repo *RepositoryMap) GetURL(shortURL string, ctx context.Context) (string, error) {
 	resultURL, okey := repo.values[shortURL]
 	if !okey {
 		return "", errors.New("not found")
@@ -64,11 +67,11 @@ func (repo *RepositoryMap) GetURL(shortURL string) (string, error) {
 	return resultURL, nil
 }
 
-func (repo *RepositoryMap) GetUserURL(user string) ([]handlers.ResponseGetURL, error) {
+func (repo *RepositoryMap) GetUserURL(user string, ctx context.Context) ([]handlers.ResponseGetURL, error) {
 	result := []handlers.ResponseGetURL{}
 	for _, url := range repo.usersURL[user] {
 		temp := handlers.ResponseGetURL{
-			ShortURL:    repo.Cfg.BaseURL + url,
+			ShortURL:    repo.baseURL + url,
 			OriginalURL: repo.values[url],
 		}
 		result = append(result, temp)
@@ -77,11 +80,11 @@ func (repo *RepositoryMap) GetUserURL(user string) ([]handlers.ResponseGetURL, e
 	return result, nil
 }
 
-func (repo *RepositoryMap) Ping() error {
+func (repo *RepositoryMap) Ping(ctx context.Context) error {
 	return nil
 }
 
-func (repo *RepositoryMap) AddManyURL(urls []handlers.ManyPostURL, user string) ([]handlers.ManyPostResponse, error) {
+func (repo *RepositoryMap) AddManyURL(urls []handlers.ManyPostURL, user string, ctx context.Context) ([]handlers.ManyPostResponse, error) {
 	return nil, nil
 }
 
@@ -112,7 +115,7 @@ func (repo *RepositoryMap) readRow(reader *bufio.Scanner) (bool, error) {
 }
 
 func (repo *RepositoryMap) writeRow(longURL string, shortURL string, filePath string, user string) error {
-	file, err := os.OpenFile(repo.Cfg.FilePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, configuration.FilePerm)
+	file, err := os.OpenFile(repo.filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, configuration.FilePerm)
 
 	if err != nil {
 		return err
