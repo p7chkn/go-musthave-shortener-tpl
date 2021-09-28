@@ -85,7 +85,7 @@ func TestRetriveShortURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repoMock := new(MockRepositoryInterface)
-			repoMock.On("GetURL", tt.query, mock.Anything).Return(tt.result, tt.err)
+			repoMock.On("GetURL", mock.Anything, tt.query).Return(tt.result, tt.err)
 			router, _ := setupRouter(repoMock, configuration.BaseURL)
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest(http.MethodGet, "/"+tt.query, nil)
@@ -143,7 +143,7 @@ func TestCreateShortURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repoMock := new(MockRepositoryInterface)
-			repoMock.On("AddURL", tt.body, tt.result, mock.Anything, mock.Anything).Return(nil)
+			repoMock.On("AddURL", mock.Anything, tt.body, tt.result, mock.Anything).Return(nil)
 			router, _ := setupRouter(repoMock, configuration.BaseURL)
 			body := strings.NewReader(tt.body)
 			w := httptest.NewRecorder()
@@ -205,7 +205,7 @@ func TestShortenURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repoMock := new(MockRepositoryInterface)
-			repoMock.On("AddURL", tt.rawData, tt.result, mock.Anything, mock.Anything).Return(nil)
+			repoMock.On("AddURL", mock.Anything, tt.rawData, tt.result, mock.Anything).Return(nil)
 			router, _ := setupRouter(repoMock, configuration.BaseURL)
 			body := strings.NewReader(tt.body)
 			w := httptest.NewRecorder()
@@ -260,7 +260,7 @@ func TestGetUserURL(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			userID, _ := uuid.NewV4()
 			repoMock := new(MockRepositoryInterface)
-			repoMock.On("GetUserURL", userID.String(), mock.Anything).Return(tt.response, nil)
+			repoMock.On("GetUserURL", mock.Anything, userID.String()).Return(tt.response, nil)
 			router, cfg := setupRouter(repoMock, configuration.BaseURL)
 
 			encoder, _ := utils.New(cfg.Key)
@@ -372,7 +372,7 @@ func TestCreateBatch(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			userID, _ := uuid.NewV4()
 			repoMock := new(MockRepositoryInterface)
-			repoMock.On("AddManyURL", tt.mockData, userID.String(), mock.Anything, mock.Anything).Return(tt.mockResponce, nil)
+			repoMock.On("AddManyURL", mock.Anything, tt.mockData, userID.String(), mock.Anything).Return(tt.mockResponce, nil)
 
 			router, cfg := setupRouter(repoMock, configuration.BaseURL)
 			encoder, _ := utils.New(cfg.Key)

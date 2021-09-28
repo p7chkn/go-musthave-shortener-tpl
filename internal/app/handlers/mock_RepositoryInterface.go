@@ -13,13 +13,13 @@ type MockRepositoryInterface struct {
 	mock.Mock
 }
 
-// AddManyURL provides a mock function with given fields: urls, user, ctx
-func (_m *MockRepositoryInterface) AddManyURL(urls []ManyPostURL, user string, ctx context.Context) ([]ManyPostResponse, error) {
-	ret := _m.Called(urls, user, ctx)
+// AddManyURL provides a mock function with given fields: ctx, urls, user
+func (_m *MockRepositoryInterface) AddManyURL(ctx context.Context, urls []ManyPostURL, user string) ([]ManyPostResponse, error) {
+	ret := _m.Called(ctx, urls, user)
 
 	var r0 []ManyPostResponse
-	if rf, ok := ret.Get(0).(func([]ManyPostURL, string, context.Context) []ManyPostResponse); ok {
-		r0 = rf(urls, user, ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, []ManyPostURL, string) []ManyPostResponse); ok {
+		r0 = rf(ctx, urls, user)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]ManyPostResponse)
@@ -27,8 +27,8 @@ func (_m *MockRepositoryInterface) AddManyURL(urls []ManyPostURL, user string, c
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func([]ManyPostURL, string, context.Context) error); ok {
-		r1 = rf(urls, user, ctx)
+	if rf, ok := ret.Get(1).(func(context.Context, []ManyPostURL, string) error); ok {
+		r1 = rf(ctx, urls, user)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -36,13 +36,13 @@ func (_m *MockRepositoryInterface) AddManyURL(urls []ManyPostURL, user string, c
 	return r0, r1
 }
 
-// AddURL provides a mock function with given fields: longURL, shortURL, user, ctx
-func (_m *MockRepositoryInterface) AddURL(longURL string, shortURL string, user string, ctx context.Context) error {
-	ret := _m.Called(longURL, shortURL, user, ctx)
+// AddURL provides a mock function with given fields: ctx, longURL, shortURL, user
+func (_m *MockRepositoryInterface) AddURL(ctx context.Context, longURL string, shortURL string, user string) error {
+	ret := _m.Called(ctx, longURL, shortURL, user)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string, string, context.Context) error); ok {
-		r0 = rf(longURL, shortURL, user, ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) error); ok {
+		r0 = rf(ctx, longURL, shortURL, user)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -50,20 +50,20 @@ func (_m *MockRepositoryInterface) AddURL(longURL string, shortURL string, user 
 	return r0
 }
 
-// GetURL provides a mock function with given fields: shortURL, ctx
-func (_m *MockRepositoryInterface) GetURL(shortURL string, ctx context.Context) (string, error) {
-	ret := _m.Called(shortURL, ctx)
+// GetURL provides a mock function with given fields: ctx, shortURL
+func (_m *MockRepositoryInterface) GetURL(ctx context.Context, shortURL string) (string, error) {
+	ret := _m.Called(ctx, shortURL)
 
 	var r0 string
-	if rf, ok := ret.Get(0).(func(string, context.Context) string); ok {
-		r0 = rf(shortURL, ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, string) string); ok {
+		r0 = rf(ctx, shortURL)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, context.Context) error); ok {
-		r1 = rf(shortURL, ctx)
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, shortURL)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -71,13 +71,13 @@ func (_m *MockRepositoryInterface) GetURL(shortURL string, ctx context.Context) 
 	return r0, r1
 }
 
-// GetUserURL provides a mock function with given fields: user, ctx
-func (_m *MockRepositoryInterface) GetUserURL(user string, ctx context.Context) ([]ResponseGetURL, error) {
-	ret := _m.Called(user, ctx)
+// GetUserURL provides a mock function with given fields: ctx, user
+func (_m *MockRepositoryInterface) GetUserURL(ctx context.Context, user string) ([]ResponseGetURL, error) {
+	ret := _m.Called(ctx, user)
 
 	var r0 []ResponseGetURL
-	if rf, ok := ret.Get(0).(func(string, context.Context) []ResponseGetURL); ok {
-		r0 = rf(user, ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, string) []ResponseGetURL); ok {
+		r0 = rf(ctx, user)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]ResponseGetURL)
@@ -85,8 +85,8 @@ func (_m *MockRepositoryInterface) GetUserURL(user string, ctx context.Context) 
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, context.Context) error); ok {
-		r1 = rf(user, ctx)
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, user)
 	} else {
 		r1 = ret.Error(1)
 	}

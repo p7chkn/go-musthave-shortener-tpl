@@ -40,7 +40,7 @@ func (db *PosrgreDataBase) Ping(ctx context.Context) error {
 	return nil
 }
 
-func (db *PosrgreDataBase) AddURL(longURL string, shortURL string, user string, ctx context.Context) error {
+func (db *PosrgreDataBase) AddURL(ctx context.Context, longURL string, shortURL string, user string) error {
 
 	sqlAddRow := `INSERT INTO urls (user_id, origin_url, short_url)
 				  VALUES ($1, $2, $3)`
@@ -56,7 +56,7 @@ func (db *PosrgreDataBase) AddURL(longURL string, shortURL string, user string, 
 	return err
 }
 
-func (db *PosrgreDataBase) GetURL(shortURL string, ctx context.Context) (string, error) {
+func (db *PosrgreDataBase) GetURL(ctx context.Context, shortURL string) (string, error) {
 
 	sqlGetURLRow := `SELECT origin_url FROM urls WHERE short_url=$1 FETCH FIRST ROW ONLY;`
 	query := db.conn.QueryRowContext(ctx, sqlGetURLRow, shortURL)
@@ -68,7 +68,7 @@ func (db *PosrgreDataBase) GetURL(shortURL string, ctx context.Context) (string,
 	return result, nil
 }
 
-func (db *PosrgreDataBase) GetUserURL(user string, ctx context.Context) ([]handlers.ResponseGetURL, error) {
+func (db *PosrgreDataBase) GetUserURL(ctx context.Context, user string) ([]handlers.ResponseGetURL, error) {
 
 	result := []handlers.ResponseGetURL{}
 
@@ -95,7 +95,7 @@ func (db *PosrgreDataBase) GetUserURL(user string, ctx context.Context) ([]handl
 	return result, nil
 }
 
-func (db *PosrgreDataBase) AddManyURL(urls []handlers.ManyPostURL, user string, ctx context.Context) ([]handlers.ManyPostResponse, error) {
+func (db *PosrgreDataBase) AddManyURL(ctx context.Context, urls []handlers.ManyPostURL, user string) ([]handlers.ManyPostResponse, error) {
 
 	result := []handlers.ManyPostResponse{}
 	tx, err := db.conn.Begin()

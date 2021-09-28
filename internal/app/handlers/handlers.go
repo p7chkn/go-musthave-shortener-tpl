@@ -14,10 +14,10 @@ import (
 
 //go:generate mockery --name=RepositoryInterface --structname=MockRepositoryInterface --inpackage
 type RepositoryInterface interface {
-	AddURL(longURL string, shortURL string, user string, ctx context.Context) error
-	GetURL(shortURL string, ctx context.Context) (string, error)
-	GetUserURL(user string, ctx context.Context) ([]ResponseGetURL, error)
-	AddManyURL(urls []ManyPostURL, user string, ctx context.Context) ([]ManyPostResponse, error)
+	AddURL(ctx context.Context, longURL string, shortURL string, user string) error
+	GetURL(ctx context.Context, shortURL string) (string, error)
+	GetUserURL(ctx context.Context, user string) ([]ResponseGetURL, error)
+	AddManyURL(ctx context.Context, urls []ManyPostURL, user string) ([]ManyPostResponse, error)
 	Ping(ctx context.Context) error
 }
 
@@ -72,7 +72,7 @@ func New(repo RepositoryInterface, basURL string) *Handler {
 
 func (h *Handler) RetriveShortURL(c *gin.Context) {
 	result := map[string]string{}
-	long, err := h.repo.GetURL(c.Param("id"), c.Request.Context())
+	long, err := h.repo.GetURL(c.Request.Context(), c.Param("id"))
 
 	if err != nil {
 		result["detail"] = err.Error()
@@ -97,7 +97,7 @@ func (h *Handler) CreateShortURL(c *gin.Context) {
 	}
 	longURL := string(body)
 	shortURL := shortener.ShorterURL(longURL)
-	err = h.repo.AddURL(longURL, shortURL, c.GetString("userId"), c.Request.Context())
+	err = h.repo.AddURL(c.Request.Context(), longURL, shortURL, c.GetString("userId"))
 	if err != nil {
 		var ue *UniqueConstraintError
 		if errors.As(err, &ue) {
@@ -130,7 +130,7 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 		return
 	}
 	shortURL := shortener.ShorterURL(url.URL)
-	err = h.repo.AddURL(url.URL, shortURL, c.GetString("userId"), c.Request.Context())
+	err = h.repo.AddURL(c.Request.Context(), url.URL, shortURL, c.GetString("userId"))
 	if err != nil {
 		var ue *UniqueConstraintError
 		if errors.As(err, &ue) {
@@ -146,7 +146,7 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 }
 
 func (h *Handler) GetUserURL(c *gin.Context) {
-	result, err := h.repo.GetUserURL(c.GetString("userId"), c.Request.Context())
+	result, err := h.repo.GetUserURL(c.Request.Context(), c.GetString("userId"))
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, err)
 		return
@@ -171,7 +171,7 @@ func (h *Handler) CreateBatch(c *gin.Context) {
 	var data []ManyPostURL
 
 	c.BindJSON(&data)
-	response, err := h.repo.AddManyURL(data, c.GetString("userId"), c.Request.Context())
+	response, err := h.repo.AddManyURL(c.Request.Context(), data, c.GetString("userId"))
 	if err != nil {
 		message := make(map[string]string)
 		message["detail"] = err.Error()

@@ -52,14 +52,14 @@ func NewRepositoryMap(filePath string, baseURL string) *RepositoryMap {
 	return &repo
 }
 
-func (repo *RepositoryMap) AddURL(longURL string, shortURL string, user string, ctx context.Context) error {
+func (repo *RepositoryMap) AddURL(ctx context.Context, longURL string, shortURL string, user string) error {
 	repo.values[shortURL] = longURL
 	repo.writeRow(longURL, shortURL, repo.filePath, user)
 	repo.usersURL[user] = append(repo.usersURL[user], shortURL)
 	return nil
 }
 
-func (repo *RepositoryMap) GetURL(shortURL string, ctx context.Context) (string, error) {
+func (repo *RepositoryMap) GetURL(ctx context.Context, shortURL string) (string, error) {
 	resultURL, okey := repo.values[shortURL]
 	if !okey {
 		return "", errors.New("not found")
@@ -67,7 +67,7 @@ func (repo *RepositoryMap) GetURL(shortURL string, ctx context.Context) (string,
 	return resultURL, nil
 }
 
-func (repo *RepositoryMap) GetUserURL(user string, ctx context.Context) ([]handlers.ResponseGetURL, error) {
+func (repo *RepositoryMap) GetUserURL(ctx context.Context, user string) ([]handlers.ResponseGetURL, error) {
 	result := []handlers.ResponseGetURL{}
 	for _, url := range repo.usersURL[user] {
 		temp := handlers.ResponseGetURL{
@@ -84,7 +84,7 @@ func (repo *RepositoryMap) Ping(ctx context.Context) error {
 	return nil
 }
 
-func (repo *RepositoryMap) AddManyURL(urls []handlers.ManyPostURL, user string, ctx context.Context) ([]handlers.ManyPostResponse, error) {
+func (repo *RepositoryMap) AddManyURL(ctx context.Context, urls []handlers.ManyPostURL, user string) ([]handlers.ManyPostResponse, error) {
 	return nil, nil
 }
 
