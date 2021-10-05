@@ -42,21 +42,23 @@ type ResponseGetURL struct {
 	OriginalURL string `json:"original_url"`
 }
 
-type UniqueConstraintError struct {
-	Err error
+type ErrorWithDB struct {
+	Err   error
+	Title string
 }
 
-func (ue *UniqueConstraintError) Error() string {
-	return fmt.Sprintf("%v", ue.Err)
+func (err *ErrorWithDB) Error() string {
+	return fmt.Sprintf("%v", err.Err)
 }
 
-func (ue *UniqueConstraintError) Unwrap() error {
-	return ue.Err
+func (err *ErrorWithDB) Unwrap() error {
+	return err.Err
 }
 
-func NewUniqueConstraintError(err error) error {
-	return &UniqueConstraintError{
-		Err: err,
+func NewErrorWithDB(err error, title string) error {
+	return &ErrorWithDB{
+		Err:   err,
+		Title: title,
 	}
 }
 
@@ -77,6 +79,11 @@ func (h *Handler) RetriveShortURL(c *gin.Context) {
 	long, err := h.repo.GetURL(c.Request.Context(), c.Param("id"))
 
 	if err != nil {
+		var ue *ErrorWithDB
+		if errors.As(err, &ue) && ue.Title == "Deleted" {
+			c.Status(http.StatusGone)
+			return
+		}
 		result["detail"] = err.Error()
 		c.IndentedJSON(http.StatusNotFound, result)
 		return
@@ -101,8 +108,8 @@ func (h *Handler) CreateShortURL(c *gin.Context) {
 	shortURL := shortener.ShorterURL(longURL)
 	err = h.repo.AddURL(c.Request.Context(), longURL, shortURL, c.GetString("userId"))
 	if err != nil {
-		var ue *UniqueConstraintError
-		if errors.As(err, &ue) {
+		var ue *ErrorWithDB
+		if errors.As(err, &ue) && ue.Title == "UniqConstraint" {
 			c.String(http.StatusConflict, h.baseURL+shortURL)
 			return
 		}
@@ -134,8 +141,8 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 	shortURL := shortener.ShorterURL(url.URL)
 	err = h.repo.AddURL(c.Request.Context(), url.URL, shortURL, c.GetString("userId"))
 	if err != nil {
-		var ue *UniqueConstraintError
-		if errors.As(err, &ue) {
+		var ue *ErrorWithDB
+		if errors.As(err, &ue) && ue.Title == "UniqConstraint" {
 			result["result"] = h.baseURL + shortURL
 			c.IndentedJSON(http.StatusConflict, result)
 			return

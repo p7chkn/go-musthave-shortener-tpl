@@ -17,6 +17,11 @@ import (
 
 const numOfWorkers = 10
 
+type GetURLdata struct {
+	Origin_url string
+	Is_delete  bool
+}
+
 type PosrgreDataBase struct {
 	conn    *sql.DB
 	baseURL string
@@ -53,7 +58,7 @@ func (db *PosrgreDataBase) AddURL(ctx context.Context, longURL string, shortURL 
 
 	if err, ok := err.(*pq.Error); ok {
 		if err.Code == pgerrcode.UniqueViolation {
-			return handlers.NewUniqueConstraintError(err)
+			return handlers.NewErrorWithDB(err, "UniqConstraint")
 		}
 	}
 
@@ -62,14 +67,17 @@ func (db *PosrgreDataBase) AddURL(ctx context.Context, longURL string, shortURL 
 
 func (db *PosrgreDataBase) GetURL(ctx context.Context, shortURL string) (string, error) {
 
-	sqlGetURLRow := `SELECT origin_url FROM urls WHERE short_url=$1 FETCH FIRST ROW ONLY;`
+	sqlGetURLRow := `SELECT origin_url, is_delete FROM urls WHERE short_url=$1 FETCH FIRST ROW ONLY;`
 	query := db.conn.QueryRowContext(ctx, sqlGetURLRow, shortURL)
-	result := ""
-	query.Scan(&result)
-	if result == "" {
-		return "", errors.New("not found")
+	result := GetURLdata{}
+	query.Scan(&result.Origin_url, &result.Is_delete)
+	if result.Origin_url == "" {
+		return "", handlers.NewErrorWithDB(errors.New("not found"), "Not found")
 	}
-	return result, nil
+	if result.Is_delete {
+		return "", handlers.NewErrorWithDB(errors.New("Deleted"), "Deleted")
+	}
+	return result.Origin_url, nil
 }
 
 func (db *PosrgreDataBase) GetUserURL(ctx context.Context, user string) ([]handlers.ResponseGetURL, error) {
@@ -150,7 +158,7 @@ func (db *PosrgreDataBase) DeleteManyURL(ctx context.Context, urls []string, use
 	fanOutChs := fanOut(inputCh, numOfWorkers)
 	workerChs := make([]chan string, 0, numOfWorkers)
 	for _, fanOutCh := range fanOutChs {
-		newWorker := db.newWorker(fanOutCh)
+		newWorker := db.chanIsOwner(fanOutCh)
 		workerChs = append(workerChs, newWorker)
 	}
 
@@ -204,7 +212,7 @@ func fanOut(inputCh chan []string, n int) []chan []string {
 	return cs
 }
 
-func (db *PosrgreDataBase) newWorker(input <-chan []string) (out chan string) {
+func (db *PosrgreDataBase) chanIsOwner(input <-chan []string) (out chan string) {
 	out = make(chan string)
 	ctx := context.Background()
 
