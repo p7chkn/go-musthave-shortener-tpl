@@ -141,3 +141,7 @@ func (repo *RepositoryMap) writeRow(longURL string, shortURL string, filePath st
 
 	return writer.Flush()
 }
+
+func (repo *RepositoryMap) DeleteManyURL(ctx context.Context, urls []string, user string) error {
+	return nil
+}

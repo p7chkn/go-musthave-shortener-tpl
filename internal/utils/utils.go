@@ -4,6 +4,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/hex"
+	"strings"
 
 	"github.com/gofrs/uuid"
 )
@@ -45,4 +46,13 @@ func (en *Encryptor) DecodeUUIDfromString(value string) (string, error) {
 		return "", err
 	}
 	return result.String(), nil
+}
+
+func TrimListToSlice(list string) ([]string, error) {
+	data := strings.ReplaceAll(list, "[", "")
+	data = strings.ReplaceAll(data, "]", "")
+	data = strings.ReplaceAll(data, `"`, "")
+	data = strings.ReplaceAll(data, ` `, "")
+	result := strings.Split(data, ",")
+	return result, nil
 }

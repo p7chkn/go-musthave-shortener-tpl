@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/shortener"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/utils"
 )
 
 //go:generate mockery --name=RepositoryInterface --structname=MockRepositoryInterface --inpackage
@@ -18,6 +19,7 @@ type RepositoryInterface interface {
 	GetURL(ctx context.Context, shortURL string) (string, error)
 	GetUserURL(ctx context.Context, user string) ([]ResponseGetURL, error)
 	AddManyURL(ctx context.Context, urls []ManyPostURL, user string) ([]ManyPostResponse, error)
+	DeleteManyURL(ctx context.Context, urls []string, user string) error
 	Ping(ctx context.Context) error
 }
 
@@ -185,4 +187,29 @@ func (h *Handler) CreateBatch(c *gin.Context) {
 		return
 	}
 	c.IndentedJSON(http.StatusCreated, response)
+}
+
+func (h *Handler) DeleteBatch(c *gin.Context) {
+	defer c.Request.Body.Close()
+
+	body, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		message := make(map[string]string)
+		message["detail"] = err.Error()
+		c.IndentedJSON(http.StatusBadRequest, message)
+		return
+	}
+	data, err := utils.TrimListToSlice(string(body))
+	if err != nil {
+		message := make(map[string]string)
+		message["detail"] = err.Error()
+		c.IndentedJSON(http.StatusBadRequest, message)
+		return
+	}
+	ctx := context.Background()
+	go func() {
+		h.repo.DeleteManyURL(ctx, data, c.GetString("userId"))
+	}()
+
+	c.Status(http.StatusAccepted)
 }

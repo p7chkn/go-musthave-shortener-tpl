@@ -50,6 +50,20 @@ func (_m *MockRepositoryInterface) AddURL(ctx context.Context, longURL string, s
 	return r0
 }
 
+// DeleteManyURL provides a mock function with given fields: ctx, urls, user
+func (_m *MockRepositoryInterface) DeleteManyURL(ctx context.Context, urls []string, user string) error {
+	ret := _m.Called(ctx, urls, user)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, []string, string) error); ok {
+		r0 = rf(ctx, urls, user)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // GetURL provides a mock function with given fields: ctx, shortURL
 func (_m *MockRepositoryInterface) GetURL(ctx context.Context, shortURL string) (string, error) {
 	ret := _m.Called(ctx, shortURL)

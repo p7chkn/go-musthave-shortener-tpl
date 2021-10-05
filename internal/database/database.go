@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
+	"sync"
 
 	"github.com/jackc/pgerrcode"
 	"github.com/lib/pq"
@@ -12,6 +14,8 @@ import (
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/handlers"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/shortener"
 )
+
+const numOfWorkers = 10
 
 type PosrgreDataBase struct {
 	conn    *sql.DB
@@ -107,9 +111,6 @@ func (db *PosrgreDataBase) AddManyURL(ctx context.Context, urls []handlers.ManyP
 	defer tx.Rollback()
 
 	stmt, err := tx.PrepareContext(ctx, `INSERT INTO urls (user_id, origin_url, short_url) VALUES ($1, $2, $3)`)
-	// _ = ` INSERT INTO urls (user_id, origin_url, short_url) VALUES ('a72c8923-3220-e8b9-0357-da73b5e3373c', 'http://iloverestaurant.ru/','98fv58Wr3hGGIzm2-aH2zA628Ng=')
-	// ON CONFLICT (short_url)
-	// DO SELECT * FROM urls;`
 
 	if err != nil {
 		return nil, err
@@ -133,4 +134,114 @@ func (db *PosrgreDataBase) AddManyURL(ctx context.Context, urls []handlers.ManyP
 	}
 	tx.Commit()
 	return result, nil
+}
+
+func (db *PosrgreDataBase) DeleteManyURL(ctx context.Context, urls []string, user string) error {
+	inputCh := make(chan []string)
+	go func() {
+		for _, url := range urls {
+			inputCh <- []string{url, user}
+		}
+		close(inputCh)
+	}()
+
+	setOfurls := []string{}
+
+	fanOutChs := fanOut(inputCh, numOfWorkers)
+	workerChs := make([]chan string, 0, numOfWorkers)
+	for _, fanOutCh := range fanOutChs {
+		newWorker := db.newWorker(fanOutCh)
+		workerChs = append(workerChs, newWorker)
+	}
+
+	for url := range fanIn(workerChs...) {
+		setOfurls = append(setOfurls, url)
+	}
+
+	sql := `UPDATE urls SET is_delete = true WHERE short_url = ANY ($1);`
+	_, err := db.conn.ExecContext(ctx, sql, pq.Array(setOfurls))
+	if err != nil {
+		log.Panicln(err)
+	}
+	return nil
+}
+
+func (db *PosrgreDataBase) isOwner(ctx context.Context, url string, user string) bool {
+	sqlGetURLRow := `SELECT user_id FROM urls WHERE short_url=$1 FETCH FIRST ROW ONLY;`
+	query := db.conn.QueryRowContext(ctx, sqlGetURLRow, url)
+	result := ""
+	query.Scan(&result)
+	return result == user
+}
+
+func fanOut(inputCh chan []string, n int) []chan []string {
+	cs := make([]chan []string, 0, n)
+	for i := 0; i < n; i++ {
+		cs = append(cs, make(chan []string))
+	}
+
+	go func() {
+		defer func(cs []chan []string) {
+			for _, c := range cs {
+				close(c)
+			}
+		}(cs)
+
+		for i := 0; i < len(cs); i++ {
+			if i == len(cs)-1 {
+				i = 0
+			}
+
+			num, ok := <-inputCh
+			if !ok {
+				return
+			}
+
+			cs[i] <- num
+		}
+	}()
+
+	return cs
+}
+
+func (db *PosrgreDataBase) newWorker(input <-chan []string) (out chan string) {
+	out = make(chan string)
+	ctx := context.Background()
+
+	go func() {
+		for item := range input {
+			is_owner := db.isOwner(ctx, item[0], item[1])
+			if is_owner {
+				out <- item[0]
+			}
+		}
+
+		close(out)
+	}()
+
+	return out
+}
+
+func fanIn(chs ...chan string) (out chan string) {
+	out = make(chan string)
+
+	go func() {
+		wg := &sync.WaitGroup{}
+
+		for _, ch := range chs {
+			wg.Add(1)
+
+			go func(items chan string) {
+				defer wg.Done()
+				for item := range items {
+					out <- item
+				}
+			}(ch)
+		}
+
+		wg.Wait()
+		close(out)
+	}()
+
+	return out
 }
