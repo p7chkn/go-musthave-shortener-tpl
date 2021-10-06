@@ -216,9 +216,8 @@ func (h *Handler) DeleteBatch(c *gin.Context) {
 	}
 	ctx := context.Background()
 	log.Println(data)
-	go func() {
-		h.repo.DeleteManyURL(ctx, data, c.GetString("userId"))
-	}()
+
+	h.repo.DeleteManyURL(ctx, data, c.GetString("userId"))
 
 	c.Status(http.StatusAccepted)
 }
