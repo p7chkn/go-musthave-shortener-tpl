@@ -34,7 +34,7 @@ func setupRouter(repo handlers.RepositoryInterface, cfg *configuration.Config) *
 	router.GET("/user/urls", handler.GetUserURL)
 	router.GET("/ping", handler.PingDB)
 	router.POST("/api/shorten/batch", handler.CreateBatch)
-	router.DELETE("/user/urls", handler.DeleteBatch)
+	router.DELETE("/api/user/urls", handler.DeleteBatch)
 
 	router.HandleMethodNotAllowed = true
 
