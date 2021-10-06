@@ -23,7 +23,7 @@ func SetUpDataBase(db *sql.DB, ctx context.Context) error {
 								user_id uuid DEFAULT uuid_generate_v4 (), 	
 								origin_url VARCHAR NOT NULL, 
 								short_url VARCHAR NOT NULL UNIQUE,
-								is_delete BOOLEAN NOT NULL DEFAULT FALSE
+								is_deleted BOOLEAN NOT NULL DEFAULT FALSE
 					);`
 	res, err := db.ExecContext(ctx, sqlCreateDB)
 	log.Println("Create table", err, res)

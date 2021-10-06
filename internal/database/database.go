@@ -18,8 +18,8 @@ import (
 const numOfWorkers = 10
 
 type GetURLdata struct {
-	Origin_url string
-	Is_delete  bool
+	OriginURL string
+	IsDeleted bool
 }
 
 type PosrgreDataBase struct {
@@ -67,17 +67,17 @@ func (db *PosrgreDataBase) AddURL(ctx context.Context, longURL string, shortURL 
 
 func (db *PosrgreDataBase) GetURL(ctx context.Context, shortURL string) (string, error) {
 
-	sqlGetURLRow := `SELECT origin_url, is_delete FROM urls WHERE short_url=$1 FETCH FIRST ROW ONLY;`
+	sqlGetURLRow := `SELECT origin_url, is_deleted FROM urls WHERE short_url=$1 FETCH FIRST ROW ONLY;`
 	query := db.conn.QueryRowContext(ctx, sqlGetURLRow, shortURL)
 	result := GetURLdata{}
-	query.Scan(&result.Origin_url, &result.Is_delete)
-	if result.Origin_url == "" {
+	query.Scan(&result.OriginURL, &result.IsDeleted)
+	if result.OriginURL == "" {
 		return "", handlers.NewErrorWithDB(errors.New("not found"), "Not found")
 	}
-	if result.Is_delete {
+	if result.IsDeleted {
 		return "", handlers.NewErrorWithDB(errors.New("Deleted"), "Deleted")
 	}
-	return result.Origin_url, nil
+	return result.OriginURL, nil
 }
 
 func (db *PosrgreDataBase) GetUserURL(ctx context.Context, user string) ([]handlers.ResponseGetURL, error) {
@@ -218,8 +218,8 @@ func (db *PosrgreDataBase) chanIsOwner(input <-chan []string) (out chan string) 
 
 	go func() {
 		for item := range input {
-			is_owner := db.isOwner(ctx, item[0], item[1])
-			if is_owner {
+			isOwner := db.isOwner(ctx, item[0], item[1])
+			if isOwner {
 				out <- item[0]
 			}
 		}
