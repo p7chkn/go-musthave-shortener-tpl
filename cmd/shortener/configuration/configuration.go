@@ -39,7 +39,7 @@ func New() *Config {
 
 	flagServerAdress := flag.String("a", ServerAdress, "server adress")
 	flagBaseURL := flag.String("b", BaseURL, "base url")
-	flagFilePath := flag.String("c", FileName, "file path")
+	flagFilePath := flag.String("f", FileName, "file path")
 	flagDataBaseURI := flag.String("d", DataBaseURI, "URI for database")
 	flag.Parse()
 
