@@ -166,7 +166,7 @@ func (db *PosrgreDataBase) DeleteManyURL(ctx context.Context, urls []string, use
 		setOfurls = append(setOfurls, url)
 	}
 
-	sql := `UPDATE urls SET is_delete = true WHERE short_url = ANY ($1);`
+	sql := `UPDATE urls SET is_deleted = true WHERE short_url = ANY ($1);`
 	_, err := db.conn.ExecContext(ctx, sql, pq.Array(setOfurls))
 	if err != nil {
 		log.Panicln(err)
