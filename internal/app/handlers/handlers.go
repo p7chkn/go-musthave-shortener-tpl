@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -215,7 +214,12 @@ func (h *Handler) DeleteBatch(c *gin.Context) {
 		return
 	}
 	ctx := context.Background()
-	log.Println(data)
+
+	// go func() {
+	// 	h.repo.DeleteManyURL(ctx, data, c.GetString("userId"))
+	// }()
+	// ВОПРОС: вот так если я запускаю в фон обработку и отдаю ответ, то тесты не проходит, тк не успевает все удалить
+	// но интуитивно кажется, что так и нужно, и так правильно
 
 	h.repo.DeleteManyURL(ctx, data, c.GetString("userId"))
 
