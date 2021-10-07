@@ -18,12 +18,14 @@ const (
 	BaseURL      = "http://localhost:8080/"
 	DataBaseURI  = ""
 	// DataBaseURI  = "postgresql://postgres:1234@localhost:5432?sslmode=disable"
+	NumOfWorkers = 10
 )
 
 type Config struct {
 	ServerAdress string `env:"SERVER_ADDRESS"`
 	BaseURL      string `env:"BASE_URL"`
 	FilePath     string `env:"FILE_STORAGE_PATH"`
+	NumOfWorkers int
 	DataBase     ConfigDatabase
 	Key          []byte
 }
@@ -41,6 +43,7 @@ func New() *Config {
 	flagBaseURL := flag.String("b", BaseURL, "base url")
 	flagFilePath := flag.String("f", FileName, "file path")
 	flagDataBaseURI := flag.String("d", DataBaseURI, "URI for database")
+	flagNumOfWorkers := flag.Int("w", NumOfWorkers, "Number of workers")
 	flag.Parse()
 
 	if *flagDataBaseURI != DataBaseURI {
@@ -70,6 +73,9 @@ func New() *Config {
 	}
 	if *flagFilePath != FileName {
 		cfg.FilePath = *flagFilePath
+	}
+	if *flagNumOfWorkers != NumOfWorkers {
+		cfg.NumOfWorkers = *flagNumOfWorkers
 	}
 
 	if cfg.FilePath != FileName {

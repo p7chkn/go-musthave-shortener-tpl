@@ -16,7 +16,6 @@ import (
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/handlers"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/middlewares"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/database"
-	"github.com/p7chkn/go-musthave-shortener-tpl/internal/filebase"
 )
 
 func setupRouter(repo handlers.RepositoryInterface, cfg *configuration.Config) *gin.Engine {
@@ -49,18 +48,18 @@ func main() {
 
 	var handler *gin.Engine
 
-	if cfg.DataBase.DataBaseURI != "" {
-		db, err := sql.Open("postgres", cfg.DataBase.DataBaseURI)
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer db.Close()
-		services.SetUpDataBase(db, ctx)
-
-		handler = setupRouter(database.NewDatabaseRepository(cfg.BaseURL, db), cfg)
-	} else {
-		handler = setupRouter(filebase.NewFileRepository(cfg.FilePath, cfg.BaseURL), cfg)
+	// if cfg.DataBase.DataBaseURI != "" {
+	db, err := sql.Open("postgres", cfg.DataBase.DataBaseURI)
+	if err != nil {
+		log.Fatal(err)
 	}
+	defer db.Close()
+	services.SetUpDataBase(db, ctx)
+
+	handler = setupRouter(database.NewDatabaseRepository(ctx, cfg.BaseURL, db), cfg)
+	// } else {
+	// 	handler = setupRouter(filebase.NewFileRepository(cfg.FilePath, cfg.BaseURL), cfg)
+	// }
 
 	server := &http.Server{
 		Addr:    cfg.ServerAdress,
