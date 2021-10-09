@@ -19,10 +19,10 @@ import (
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/filebase"
 )
 
-func setupRouter(repo handlers.RepositoryInterface, cfg *configuration.Config) *gin.Engine {
+func setupRouter(ctx context.Context, repo handlers.RepositoryInterface, cfg *configuration.Config) *gin.Engine {
 	router := gin.Default()
 
-	handler := handlers.New(repo, cfg.BaseURL)
+	handler := handlers.New(ctx, repo, cfg.BaseURL, cfg.NumOfWorkers)
 
 	router.Use(middlewares.GzipEncodeMiddleware())
 	router.Use(middlewares.GzipDecodeMiddleware())
@@ -57,9 +57,9 @@ func main() {
 		defer db.Close()
 		services.SetUpDataBase(db, ctx)
 
-		handler = setupRouter(database.NewDatabaseRepository(ctx, cfg.BaseURL, db), cfg)
+		handler = setupRouter(ctx, database.NewDatabaseRepository(ctx, cfg.BaseURL, db), cfg)
 	} else {
-		handler = setupRouter(filebase.NewFileRepository(cfg.FilePath, cfg.BaseURL), cfg)
+		handler = setupRouter(ctx, filebase.NewFileRepository(cfg.FilePath, cfg.BaseURL), cfg)
 	}
 
 	server := &http.Server{

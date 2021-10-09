@@ -1,29 +1,35 @@
-package workerPool
+package workers
 
 import (
-	"fmt"
+	"context"
 	"sync"
-
-	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/handlers"
 )
 
-type WorkerPool struct {
-	NumOfWorkers int
-	inputCh      chan []string
-	outCh        chan string
-	workers      []chan string
-	pool         []chan []string
-	repo         handlers.RepositoryInterface
+type workerRepoInterface interface {
+	DeleteManyURL(urls []string, user string) error
+	IsOwner(url string, user string) bool
 }
 
-func New(numOfWorkers int) *WorkerPool {
-	return &WorkerPool{
+type WorkerURLDelete struct {
+	ctx          context.Context
+	NumOfWorkers int
+	inputCh      chan []string
+	workers      []chan string
+	pool         []chan []string
+	repo         workerRepoInterface
+}
+
+func NewWorkerURLDelete(ctx context.Context, numOfWorkers int, repo workerRepoInterface) *WorkerURLDelete {
+	return &WorkerURLDelete{
+		ctx:          ctx,
 		NumOfWorkers: numOfWorkers,
 		workers:      make([]chan string, 0, numOfWorkers),
+		inputCh:      make(chan []string),
+		repo:         repo,
 	}
 }
 
-func (wp *WorkerPool) fanOut() {
+func (wp *WorkerURLDelete) fanOut() {
 	cs := make([]chan []string, 0, wp.NumOfWorkers)
 	for i := 0; i < wp.NumOfWorkers; i++ {
 		cs = append(cs, make(chan []string))
@@ -51,7 +57,7 @@ func (wp *WorkerPool) fanOut() {
 	wp.pool = cs
 }
 
-func (wp *WorkerPool) fanIn() chan string {
+func (wp *WorkerURLDelete) fanIn() chan string {
 	out := make(chan string)
 
 	go func() {
@@ -63,19 +69,21 @@ func (wp *WorkerPool) fanIn() chan string {
 			go func(items chan string) {
 				defer wg.Done()
 				for item := range items {
+
 					out <- item
+
 				}
 			}(ch)
 		}
-
 		wg.Wait()
-		close(wp.outCh)
+		close(out)
 	}()
 	return out
 }
 
-func (wp *WorkerPool) NewWorker(input <-chan []string) chan string {
+func (wp *WorkerURLDelete) newWorker(input <-chan []string) chan string {
 	out := make(chan string)
+
 	go func() {
 		for item := range input {
 			isOwner := wp.repo.IsOwner(item[0], item[1])
@@ -89,26 +97,27 @@ func (wp *WorkerPool) NewWorker(input <-chan []string) chan string {
 	return out
 }
 
-func (wp *WorkerPool) DeleteURL(urls []string, user string) {
-	fmt.Println("In Delete")
+func (wp *WorkerURLDelete) DeleteURL(urls []string, user string) {
 	go func() {
+	outer:
 		for _, url := range urls {
-			fmt.Println("InitLoop")
-			wp.inputCh <- []string{url, user}
+			select {
+			case <-wp.ctx.Done():
+				close(wp.inputCh)
+				break outer
+			case wp.inputCh <- []string{url, user}:
+			}
+
 		}
 		close(wp.inputCh)
 	}()
 	urlsToDelete := []string{}
-
 	wp.fanOut()
 
 	for _, ch := range wp.pool {
-		fmt.Println("poll")
-		wp.workers = append(wp.workers, wp.NewWorker(ch))
+		wp.workers = append(wp.workers, wp.newWorker(ch))
 	}
-
 	for url := range wp.fanIn() {
-		fmt.Println("fanIN")
 		urlsToDelete = append(urlsToDelete, url)
 	}
 

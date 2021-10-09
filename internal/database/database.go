@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
-	"sync"
 
 	"github.com/jackc/pgerrcode"
 	"github.com/lib/pq"
@@ -14,8 +12,6 @@ import (
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/handlers"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/shortener"
 )
-
-const numOfWorkers = 10
 
 type GetURLdata struct {
 	OriginURL string
@@ -86,7 +82,7 @@ func (db *PosrgreDataBase) GetUserURL(user string) ([]handlers.ResponseGetURL, e
 
 	result := []handlers.ResponseGetURL{}
 
-	sqlGetUserURL := `SELECT origin_url, short_url FROM urls WHERE user_id=$1;`
+	sqlGetUserURL := `SELECT origin_url, short_url FROM urls WHERE user_id=$1 AND is_deleted=false;`
 	rows, err := db.conn.QueryContext(db.ctx, sqlGetUserURL, user)
 	if err != nil {
 		return result, err
@@ -147,31 +143,11 @@ func (db *PosrgreDataBase) AddManyURL(urls []handlers.ManyPostURL, user string) 
 }
 
 func (db *PosrgreDataBase) DeleteManyURL(urls []string, user string) error {
-	// inputCh := make(chan []string)
-	// go func() {
-	// 	for _, url := range urls {
-	// 		inputCh <- []string{url, user}
-	// 	}
-	// 	close(inputCh)
-	// }()
-
-	// setOfurls := []string{}
-
-	// fanOutChs := fanOut(inputCh, numOfWorkers)
-	// workerChs := make([]chan string, 0, numOfWorkers)
-	// for _, fanOutCh := range fanOutChs {
-	// 	newWorker := db.chanIsOwner(fanOutCh)
-	// 	workerChs = append(workerChs, newWorker)
-	// }
-
-	// for url := range fanIn(workerChs...) {
-	// 	setOfurls = append(setOfurls, url)
-	// }
 
 	sql := `UPDATE urls SET is_deleted = true WHERE short_url = ANY ($1);`
 	_, err := db.conn.ExecContext(db.ctx, sql, pq.Array(urls))
 	if err != nil {
-		log.Println(err)
+		return err
 	}
 	return nil
 }
@@ -182,75 +158,4 @@ func (db *PosrgreDataBase) IsOwner(url string, user string) bool {
 	result := ""
 	query.Scan(&result)
 	return result == user
-}
-
-func fanOut(inputCh chan []string, n int) []chan []string {
-	cs := make([]chan []string, 0, n)
-	for i := 0; i < n; i++ {
-		cs = append(cs, make(chan []string))
-	}
-
-	go func() {
-		defer func(cs []chan []string) {
-			for _, c := range cs {
-				close(c)
-			}
-		}(cs)
-
-		for i := 0; i < len(cs); i++ {
-			if i == len(cs)-1 {
-				i = 0
-			}
-
-			num, ok := <-inputCh
-			if !ok {
-				return
-			}
-
-			cs[i] <- num
-		}
-	}()
-
-	return cs
-}
-
-func (db *PosrgreDataBase) chanIsOwner(input <-chan []string) (out chan string) {
-	out = make(chan string)
-
-	go func() {
-		for item := range input {
-			isOwner := db.IsOwner(item[0], item[1])
-			if isOwner {
-				out <- item[0]
-			}
-		}
-
-		close(out)
-	}()
-
-	return out
-}
-
-func fanIn(chs ...chan string) (out chan string) {
-	out = make(chan string)
-
-	go func() {
-		wg := &sync.WaitGroup{}
-
-		for _, ch := range chs {
-			wg.Add(1)
-
-			go func(items chan string) {
-				defer wg.Done()
-				for item := range items {
-					out <- item
-				}
-			}(ch)
-		}
-
-		wg.Wait()
-		close(out)
-	}()
-
-	return out
 }

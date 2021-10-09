@@ -1,15 +1,16 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/shortener"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/workers"
 )
 
 //go:generate mockery --name=RepositoryInterface -case camel -inpkg
@@ -64,14 +65,18 @@ func NewErrorWithDB(err error, title string) error {
 }
 
 type Handler struct {
-	repo    RepositoryInterface
-	baseURL string
+	repo            RepositoryInterface
+	baseURL         string
+	numberOfWorkers int
+	ctx             context.Context
 }
 
-func New(repo RepositoryInterface, basURL string) *Handler {
+func New(ctx context.Context, repo RepositoryInterface, basURL string, numberOfWorkers int) *Handler {
 	return &Handler{
-		repo:    repo,
-		baseURL: basURL,
+		ctx:             ctx,
+		repo:            repo,
+		baseURL:         basURL,
+		numberOfWorkers: numberOfWorkers,
 	}
 }
 
@@ -216,116 +221,9 @@ func (h *Handler) DeleteBatch(c *gin.Context) {
 		return
 	}
 	go func() {
-		wp := NewWorkerPool(10, h.repo)
+		wp := workers.NewWorkerURLDelete(h.ctx, h.numberOfWorkers, h.repo)
 		wp.DeleteURL(data, c.GetString("userId"))
-		h.repo.DeleteManyURL(data, c.GetString("userId"))
 	}()
 
 	c.Status(http.StatusAccepted)
-}
-
-type WorkerPool struct {
-	NumOfWorkers int
-	inputCh      chan []string
-	workers      []chan string
-	pool         []chan []string
-	repo         RepositoryInterface
-}
-
-func NewWorkerPool(numOfWorkers int, repo RepositoryInterface) *WorkerPool {
-	return &WorkerPool{
-		NumOfWorkers: numOfWorkers,
-		workers:      make([]chan string, 0, numOfWorkers),
-		inputCh:      make(chan []string),
-		repo:         repo,
-	}
-}
-
-func (wp *WorkerPool) fanOut() {
-	cs := make([]chan []string, 0, wp.NumOfWorkers)
-	for i := 0; i < wp.NumOfWorkers; i++ {
-		cs = append(cs, make(chan []string))
-	}
-	go func() {
-		defer func(cs []chan []string) {
-			for _, c := range cs {
-				close(c)
-			}
-		}(cs)
-
-		for i := 0; i < len(cs); i++ {
-			if i == len(cs)-1 {
-				i = 0
-			}
-
-			url, ok := <-wp.inputCh
-			if !ok {
-				return
-			}
-
-			cs[i] <- url
-		}
-	}()
-	wp.pool = cs
-}
-
-func (wp *WorkerPool) fanIn() chan string {
-	out := make(chan string)
-
-	go func() {
-		wg := &sync.WaitGroup{}
-
-		for _, ch := range wp.workers {
-			wg.Add(1)
-
-			go func(items chan string) {
-				defer wg.Done()
-				for item := range items {
-
-					out <- item
-
-				}
-			}(ch)
-		}
-		wg.Wait()
-		close(out)
-	}()
-	return out
-}
-
-func (wp *WorkerPool) NewWorker(input <-chan []string) chan string {
-	out := make(chan string)
-
-	go func() {
-		for item := range input {
-			isOwner := wp.repo.IsOwner(item[0], item[1])
-			if isOwner {
-				out <- item[0]
-			}
-		}
-
-		close(out)
-	}()
-	return out
-}
-
-func (wp *WorkerPool) DeleteURL(urls []string, user string) {
-	go func() {
-		for _, url := range urls {
-			wp.inputCh <- []string{url, user}
-		}
-		close(wp.inputCh)
-	}()
-	urlsToDelete := []string{"1"}
-	// urlsToDelete = append(urlsToDelete, "s")
-	wp.fanOut()
-
-	for _, ch := range wp.pool {
-		wp.workers = append(wp.workers, wp.NewWorker(ch))
-	}
-	for url := range wp.fanIn() {
-		urlsToDelete = append(urlsToDelete, url)
-	}
-
-	// wp.repo.DeleteManyURL(urlsToDelete, user)
 }
