@@ -2,6 +2,7 @@ package filebase
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"log"
@@ -11,8 +12,8 @@ import (
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/handlers"
 )
 
-func NewFileRepository(filePath string, baseURL string) handlers.RepositoryInterface {
-	return handlers.RepositoryInterface(NewRepositoryMap(filePath, baseURL))
+func NewFileRepository(ctx context.Context, filePath string, baseURL string) handlers.RepositoryInterface {
+	return handlers.RepositoryInterface(NewRepositoryMap(ctx, filePath, baseURL))
 }
 
 type RepositoryMap struct {
@@ -22,7 +23,7 @@ type RepositoryMap struct {
 	usersURL map[string][]string
 }
 
-func NewRepositoryMap(filePath string, baseURL string) *RepositoryMap {
+func NewRepositoryMap(ctx context.Context, filePath string, baseURL string) *RepositoryMap {
 	repo := RepositoryMap{
 		values:   map[string]string{},
 		filePath: filePath,
@@ -51,14 +52,14 @@ func NewRepositoryMap(filePath string, baseURL string) *RepositoryMap {
 	return &repo
 }
 
-func (repo *RepositoryMap) AddURL(longURL string, shortURL string, user string) error {
+func (repo *RepositoryMap) AddURL(ctx context.Context, longURL string, shortURL string, user string) error {
 	repo.values[shortURL] = longURL
 	repo.writeRow(longURL, shortURL, repo.filePath, user)
 	repo.usersURL[user] = append(repo.usersURL[user], shortURL)
 	return nil
 }
 
-func (repo *RepositoryMap) GetURL(shortURL string) (string, error) {
+func (repo *RepositoryMap) GetURL(ctx context.Context, shortURL string) (string, error) {
 	resultURL, okey := repo.values[shortURL]
 	if !okey {
 		return "", errors.New("not found")
@@ -66,7 +67,7 @@ func (repo *RepositoryMap) GetURL(shortURL string) (string, error) {
 	return resultURL, nil
 }
 
-func (repo *RepositoryMap) GetUserURL(user string) ([]handlers.ResponseGetURL, error) {
+func (repo *RepositoryMap) GetUserURL(ctx context.Context, user string) ([]handlers.ResponseGetURL, error) {
 	result := []handlers.ResponseGetURL{}
 	for _, url := range repo.usersURL[user] {
 		temp := handlers.ResponseGetURL{
@@ -79,11 +80,11 @@ func (repo *RepositoryMap) GetUserURL(user string) ([]handlers.ResponseGetURL, e
 	return result, nil
 }
 
-func (repo *RepositoryMap) Ping() error {
+func (repo *RepositoryMap) Ping(ctx context.Context) error {
 	return nil
 }
 
-func (repo *RepositoryMap) AddManyURL(urls []handlers.ManyPostURL, user string) ([]handlers.ManyPostResponse, error) {
+func (repo *RepositoryMap) AddManyURL(ctx context.Context, urls []handlers.ManyPostURL, user string) ([]handlers.ManyPostResponse, error) {
 	return nil, nil
 }
 
@@ -141,10 +142,6 @@ func (repo *RepositoryMap) writeRow(longURL string, shortURL string, filePath st
 	return writer.Flush()
 }
 
-func (repo *RepositoryMap) DeleteManyURL(urls []string, user string) error {
+func (repo *RepositoryMap) DeleteManyURL(ctx context.Context, urls []string, user string) error {
 	return nil
-}
-
-func (repo *RepositoryMap) IsOwner(url string, user string) bool {
-	return true
 }

@@ -16,13 +16,12 @@ import (
 //go:generate mockery --name=RepositoryInterface -case camel -inpkg
 
 type RepositoryInterface interface {
-	AddURL(longURL string, shortURL string, user string) error
-	GetURL(shortURL string) (string, error)
-	GetUserURL(user string) ([]ResponseGetURL, error)
-	AddManyURL(urls []ManyPostURL, user string) ([]ManyPostResponse, error)
-	DeleteManyURL(urls []string, user string) error
-	IsOwner(url string, user string) bool
-	Ping() error
+	AddURL(ctx context.Context, longURL string, shortURL string, user string) error
+	GetURL(ctx context.Context, shortURL string) (string, error)
+	GetUserURL(ctx context.Context, user string) ([]ResponseGetURL, error)
+	AddManyURL(ctx context.Context, urls []ManyPostURL, user string) ([]ManyPostResponse, error)
+	DeleteManyURL(ctx context.Context, urls []string, user string) error
+	Ping(ctx context.Context) error
 }
 
 type PostURL struct {
@@ -65,24 +64,22 @@ func NewErrorWithDB(err error, title string) error {
 }
 
 type Handler struct {
-	repo            RepositoryInterface
-	baseURL         string
-	numberOfWorkers int
-	ctx             context.Context
+	repo    RepositoryInterface
+	baseURL string
+	wp      workers.WorkerPool
 }
 
-func New(ctx context.Context, repo RepositoryInterface, basURL string, numberOfWorkers int) *Handler {
+func New(repo RepositoryInterface, basURL string, wp *workers.WorkerPool) *Handler {
 	return &Handler{
-		ctx:             ctx,
-		repo:            repo,
-		baseURL:         basURL,
-		numberOfWorkers: numberOfWorkers,
+		repo:    repo,
+		baseURL: basURL,
+		wp:      *wp,
 	}
 }
 
 func (h *Handler) RetriveShortURL(c *gin.Context) {
 	result := map[string]string{}
-	long, err := h.repo.GetURL(c.Param("id"))
+	long, err := h.repo.GetURL(c.Request.Context(), c.Param("id"))
 
 	if err != nil {
 		var ue *ErrorWithDB
@@ -112,7 +109,7 @@ func (h *Handler) CreateShortURL(c *gin.Context) {
 	}
 	longURL := string(body)
 	shortURL := shortener.ShorterURL(longURL)
-	err = h.repo.AddURL(longURL, shortURL, c.GetString("userId"))
+	err = h.repo.AddURL(c.Request.Context(), longURL, shortURL, c.GetString("userId"))
 	if err != nil {
 		var ue *ErrorWithDB
 		if errors.As(err, &ue) && ue.Title == "UniqConstraint" {
@@ -145,7 +142,7 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 		return
 	}
 	shortURL := shortener.ShorterURL(url.URL)
-	err = h.repo.AddURL(url.URL, shortURL, c.GetString("userId"))
+	err = h.repo.AddURL(c.Request.Context(), url.URL, shortURL, c.GetString("userId"))
 	if err != nil {
 		var ue *ErrorWithDB
 		if errors.As(err, &ue) && ue.Title == "UniqConstraint" {
@@ -161,7 +158,7 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 }
 
 func (h *Handler) GetUserURL(c *gin.Context) {
-	result, err := h.repo.GetUserURL(c.GetString("userId"))
+	result, err := h.repo.GetUserURL(c.Request.Context(), c.GetString("userId"))
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, err)
 		return
@@ -174,7 +171,7 @@ func (h *Handler) GetUserURL(c *gin.Context) {
 }
 
 func (h *Handler) PingDB(c *gin.Context) {
-	err := h.repo.Ping()
+	err := h.repo.Ping(c.Request.Context())
 	if err != nil {
 		c.String(http.StatusInternalServerError, "")
 		return
@@ -186,7 +183,7 @@ func (h *Handler) CreateBatch(c *gin.Context) {
 	var data []ManyPostURL
 
 	c.BindJSON(&data)
-	response, err := h.repo.AddManyURL(data, c.GetString("userId"))
+	response, err := h.repo.AddManyURL(c.Request.Context(), data, c.GetString("userId"))
 	if err != nil {
 		message := make(map[string]string)
 		message["detail"] = err.Error()
@@ -220,10 +217,11 @@ func (h *Handler) DeleteBatch(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, message)
 		return
 	}
-	go func() {
-		wp := workers.NewWorkerURLDelete(h.ctx, h.numberOfWorkers, h.repo)
-		wp.DeleteURL(data, c.GetString("userId"))
-	}()
+
+	h.wp.Push(func(ctx context.Context) error {
+		err := h.repo.DeleteManyURL(ctx, data, c.GetString("userId"))
+		return err
+	})
 
 	c.Status(http.StatusAccepted)
 }
