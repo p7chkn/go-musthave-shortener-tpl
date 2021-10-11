@@ -50,15 +50,18 @@ func (wp *WorkerPool) run(ctx context.Context) {
 		})
 	}
 	go func() {
-		if err := g.Wait(); err != nil {
-			log.Println(err)
+		defer func() {
 			close(wp.inputCh)
 			close(wp.errorCh)
 			cancel()
+		}()
+		if err := g.Wait(); err != nil {
+			log.Println(err)
 			return
 		}
 
 	}()
+
 }
 
 func (wp *WorkerPool) Push(task func(ctx context.Context) error) {
