@@ -217,11 +217,20 @@ func (h *Handler) DeleteBatch(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, message)
 		return
 	}
-
-	h.wp.Push(func(ctx context.Context) error {
-		err := h.repo.DeleteManyURL(ctx, data, c.GetString("userId"))
-		return err
-	})
+	sliceData := [][]string{}
+	for i := 10; i <= len(data); i += 10 {
+		sliceData = append(sliceData, data[i-10:i])
+	}
+	rem := len(data) % 10
+	if rem > 0 {
+		sliceData = append(sliceData, data[len(data)-rem:])
+	}
+	for _, taskData := range sliceData {
+		h.wp.Push(func(ctx context.Context) error {
+			err := h.repo.DeleteManyURL(ctx, taskData, c.GetString("userId"))
+			return err
+		})
+	}
 
 	c.Status(http.StatusAccepted)
 }

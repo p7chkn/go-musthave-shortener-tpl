@@ -153,7 +153,7 @@ func (db *PosrgreDataBase) DeleteManyURL(ctx context.Context, urls []string, use
 	if err != nil {
 		return err
 	}
-	return errors.New("TEST")
+	return nil
 }
 
 func (db *PosrgreDataBase) isOwner(ctx context.Context, url string, user string) bool {

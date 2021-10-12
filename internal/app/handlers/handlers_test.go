@@ -26,7 +26,7 @@ func setupRouter(ctx context.Context, repo RepositoryInterface, baseURL string) 
 		Key:     key,
 		BaseURL: configuration.BaseURL,
 	}
-	handler := New(ctx, repo, cfg.BaseURL, cfg.NumOfWorkers)
+	handler := New(repo, cfg.BaseURL, cfg.NumOfWorkers)
 	router.Use(middlewares.CookiMiddleware(cfg))
 	router.GET("/:id", handler.RetriveShortURL)
 	router.POST("/", handler.CreateShortURL)
