@@ -56,6 +56,7 @@ func New() *Config {
 		BaseURL:      BaseURL,
 		DataBase:     dbCfg,
 		Key:          make([]byte, 16),
+		NumOfWorkers: NumOfWorkers,
 	}
 	cfg.BaseURL = fmt.Sprintf("http://%s/", cfg.ServerAdress)
 

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -18,14 +19,14 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func setupRouter(repo RepositoryInterface, baseURL string) (*gin.Engine, *configuration.Config) {
+func setupRouter(ctx context.Context, repo RepositoryInterface, baseURL string) (*gin.Engine, *configuration.Config) {
 	router := gin.Default()
 	key, _ := configuration.GenerateRandom(16)
 	cfg := &configuration.Config{
 		Key:     key,
 		BaseURL: configuration.BaseURL,
 	}
-	handler := New(repo, cfg.BaseURL)
+	handler := New(repo, cfg.BaseURL, cfg.NumOfWorkers)
 	router.Use(middlewares.CookiMiddleware(cfg))
 	router.GET("/:id", handler.RetriveShortURL)
 	router.POST("/", handler.CreateShortURL)
@@ -84,9 +85,10 @@ func TestRetriveShortURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
 			repoMock := new(MockRepositoryInterface)
-			repoMock.On("GetURL", mock.Anything, tt.query).Return(tt.result, tt.err)
-			router, _ := setupRouter(repoMock, configuration.BaseURL)
+			repoMock.On("GetURL", tt.query).Return(tt.result, tt.err)
+			router, _ := setupRouter(ctx, repoMock, configuration.BaseURL)
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest(http.MethodGet, "/"+tt.query, nil)
 			router.ServeHTTP(w, req)
@@ -142,9 +144,10 @@ func TestCreateShortURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
 			repoMock := new(MockRepositoryInterface)
-			repoMock.On("AddURL", mock.Anything, tt.body, tt.result, mock.Anything).Return(nil)
-			router, _ := setupRouter(repoMock, configuration.BaseURL)
+			repoMock.On("AddURL", tt.body, tt.result, mock.Anything).Return(nil)
+			router, _ := setupRouter(ctx, repoMock, configuration.BaseURL)
 			body := strings.NewReader(tt.body)
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest(http.MethodPost, "/"+tt.query, body)
@@ -204,9 +207,10 @@ func TestShortenURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
 			repoMock := new(MockRepositoryInterface)
-			repoMock.On("AddURL", mock.Anything, tt.rawData, tt.result, mock.Anything).Return(nil)
-			router, _ := setupRouter(repoMock, configuration.BaseURL)
+			repoMock.On("AddURL", tt.rawData, tt.result, mock.Anything).Return(nil)
+			router, _ := setupRouter(ctx, repoMock, configuration.BaseURL)
 			body := strings.NewReader(tt.body)
 			w := httptest.NewRecorder()
 			fmt.Println(tt.query)
@@ -258,10 +262,12 @@ func TestGetUserURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+
+			ctx := context.Background()
 			userID, _ := uuid.NewV4()
 			repoMock := new(MockRepositoryInterface)
-			repoMock.On("GetUserURL", mock.Anything, userID.String()).Return(tt.response, nil)
-			router, cfg := setupRouter(repoMock, configuration.BaseURL)
+			repoMock.On("GetUserURL", userID.String()).Return(tt.response, nil)
+			router, cfg := setupRouter(ctx, repoMock, configuration.BaseURL)
 
 			encoder, _ := utils.New(cfg.Key)
 
@@ -370,11 +376,13 @@ func TestCreateBatch(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+
+			ctx := context.Background()
 			userID, _ := uuid.NewV4()
 			repoMock := new(MockRepositoryInterface)
-			repoMock.On("AddManyURL", mock.Anything, tt.mockData, userID.String(), mock.Anything).Return(tt.mockResponce, nil)
+			repoMock.On("AddManyURL", tt.mockData, userID.String(), mock.Anything).Return(tt.mockResponce, nil)
 
-			router, cfg := setupRouter(repoMock, configuration.BaseURL)
+			router, cfg := setupRouter(ctx, repoMock, configuration.BaseURL)
 			encoder, _ := utils.New(cfg.Key)
 
 			cookie := http.Cookie{
@@ -400,3 +408,69 @@ func TestCreateBatch(t *testing.T) {
 		})
 	}
 }
+
+// func TestDeleteBatch(t *testing.T) {
+// 	type want struct {
+// 		code        int
+// 		contentType string
+// 		response    string
+// 	}
+// 	tests := []struct {
+// 		name     string
+// 		query    string
+// 		body string
+// 		response []ResponseGetURL
+// 		want     want
+// 	}{
+// 		{
+// 			name:  "correct DELETE",
+// 			query: "user/urls",
+// 			body: `["1"]`,
+// 			response: []ResponseGetURL{
+// 				{
+// 					ShortURL:    "http://localhost:8080/1yhVmSPGQlZn3EnrI2kd7Oxu5UM=",
+// 					OriginalURL: "http://hbqouwjbx5jl.ru/lkm0skvkix1ejv",
+// 				}},
+// 			want: want{
+// 				code:        202,
+// 				contentType: `application/json; charset=utf-8`,
+// 				response: `[{
+// 					"short_url": "http://localhost:8080/1yhVmSPGQlZn3EnrI2kd7Oxu5UM=",
+// 					"original_url": "http://hbqouwjbx5jl.ru/lkm0skvkix1ejv"
+// 				}]`,
+// 			},
+// 		},
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+
+// 			ctx := context.Background()
+// 			userID, _ := uuid.NewV4()
+// 			repoMock := new(MockRepositoryInterface)
+// 			repoMock.On("GetUserURL", userID.String()).Return(tt.response, nil)
+// 			router, cfg := setupRouter(ctx, repoMock, configuration.BaseURL)
+
+// 			encoder, _ := utils.New(cfg.Key)
+
+// 			cookie := http.Cookie{
+// 				Name:  "userId",
+// 				Value: encoder.EncodeUUIDtoString(userID.Bytes()),
+// 			}
+
+// 			w := httptest.NewRecorder()
+// 			req, _ := http.NewRequest(http.MethodGet, "/"+tt.query, nil)
+// 			req.AddCookie(&cookie)
+
+// 			router.ServeHTTP(w, req)
+
+// 			assert.Equal(t, tt.want.contentType, w.Header()["Content-Type"][0])
+// 			assert.Equal(t, tt.want.code, w.Code)
+// 			resBody, err := ioutil.ReadAll(w.Body)
+// 			if err != nil {
+// 				t.Fatal(err)
+// 			}
+// 			assert.JSONEq(t, tt.want.response, string(resBody))
+
+// 		})
+// 	}
+// }

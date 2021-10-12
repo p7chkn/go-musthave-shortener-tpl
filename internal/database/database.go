@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
-	"sync"
 
 	"github.com/jackc/pgerrcode"
 	"github.com/lib/pq"
@@ -14,8 +12,6 @@ import (
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/handlers"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/shortener"
 )
-
-const numOfWorkers = 10
 
 type GetURLdata struct {
 	OriginURL string
@@ -25,25 +21,23 @@ type GetURLdata struct {
 type PosrgreDataBase struct {
 	conn    *sql.DB
 	baseURL string
-	ctx     context.Context
 }
 
-func NewDatabaseRepository(ctx context.Context, baseURL string, db *sql.DB) handlers.RepositoryInterface {
-	return handlers.RepositoryInterface(NewDatabase(ctx, baseURL, db))
+func NewDatabaseRepository(baseURL string, db *sql.DB) handlers.RepositoryInterface {
+	return handlers.RepositoryInterface(NewDatabase(baseURL, db))
 }
 
-func NewDatabase(ctx context.Context, baseURL string, db *sql.DB) *PosrgreDataBase {
+func NewDatabase(baseURL string, db *sql.DB) *PosrgreDataBase {
 	result := &PosrgreDataBase{
 		conn:    db,
 		baseURL: baseURL,
-		ctx:     ctx,
 	}
 	return result
 }
 
-func (db *PosrgreDataBase) Ping() error {
+func (db *PosrgreDataBase) Ping(ctx context.Context) error {
 
-	err := db.conn.PingContext(db.ctx)
+	err := db.conn.PingContext(ctx)
 	if err != nil {
 		fmt.Println(err)
 		return err
@@ -51,12 +45,12 @@ func (db *PosrgreDataBase) Ping() error {
 	return nil
 }
 
-func (db *PosrgreDataBase) AddURL(longURL string, shortURL string, user string) error {
+func (db *PosrgreDataBase) AddURL(ctx context.Context, longURL string, shortURL string, user string) error {
 
 	sqlAddRow := `INSERT INTO urls (user_id, origin_url, short_url)
 				  VALUES ($1, $2, $3)`
 
-	_, err := db.conn.ExecContext(db.ctx, sqlAddRow, user, longURL, shortURL)
+	_, err := db.conn.ExecContext(ctx, sqlAddRow, user, longURL, shortURL)
 
 	if err, ok := err.(*pq.Error); ok {
 		if err.Code == pgerrcode.UniqueViolation {
@@ -67,10 +61,10 @@ func (db *PosrgreDataBase) AddURL(longURL string, shortURL string, user string) 
 	return err
 }
 
-func (db *PosrgreDataBase) GetURL(shortURL string) (string, error) {
+func (db *PosrgreDataBase) GetURL(ctx context.Context, shortURL string) (string, error) {
 
 	sqlGetURLRow := `SELECT origin_url, is_deleted FROM urls WHERE short_url=$1 FETCH FIRST ROW ONLY;`
-	query := db.conn.QueryRowContext(db.ctx, sqlGetURLRow, shortURL)
+	query := db.conn.QueryRowContext(ctx, sqlGetURLRow, shortURL)
 	result := GetURLdata{}
 	query.Scan(&result.OriginURL, &result.IsDeleted)
 	if result.OriginURL == "" {
@@ -82,12 +76,12 @@ func (db *PosrgreDataBase) GetURL(shortURL string) (string, error) {
 	return result.OriginURL, nil
 }
 
-func (db *PosrgreDataBase) GetUserURL(user string) ([]handlers.ResponseGetURL, error) {
+func (db *PosrgreDataBase) GetUserURL(ctx context.Context, user string) ([]handlers.ResponseGetURL, error) {
 
 	result := []handlers.ResponseGetURL{}
 
-	sqlGetUserURL := `SELECT origin_url, short_url FROM urls WHERE user_id=$1;`
-	rows, err := db.conn.QueryContext(db.ctx, sqlGetUserURL, user)
+	sqlGetUserURL := `SELECT origin_url, short_url FROM urls WHERE user_id=$1 AND is_deleted=false;`
+	rows, err := db.conn.QueryContext(ctx, sqlGetUserURL, user)
 	if err != nil {
 		return result, err
 	}
@@ -109,7 +103,7 @@ func (db *PosrgreDataBase) GetUserURL(user string) ([]handlers.ResponseGetURL, e
 	return result, nil
 }
 
-func (db *PosrgreDataBase) AddManyURL(urls []handlers.ManyPostURL, user string) ([]handlers.ManyPostResponse, error) {
+func (db *PosrgreDataBase) AddManyURL(ctx context.Context, urls []handlers.ManyPostURL, user string) ([]handlers.ManyPostResponse, error) {
 
 	result := []handlers.ManyPostResponse{}
 	tx, err := db.conn.Begin()
@@ -120,7 +114,7 @@ func (db *PosrgreDataBase) AddManyURL(urls []handlers.ManyPostURL, user string) 
 
 	defer tx.Rollback()
 
-	stmt, err := tx.PrepareContext(db.ctx, `INSERT INTO urls (user_id, origin_url, short_url) VALUES ($1, $2, $3)`)
+	stmt, err := tx.PrepareContext(ctx, `INSERT INTO urls (user_id, origin_url, short_url) VALUES ($1, $2, $3)`)
 
 	if err != nil {
 		return nil, err
@@ -130,7 +124,7 @@ func (db *PosrgreDataBase) AddManyURL(urls []handlers.ManyPostURL, user string) 
 
 	for _, u := range urls {
 		shortURL := shortener.ShorterURL(u.OriginalURL)
-		if _, err = stmt.ExecContext(db.ctx, user, u.OriginalURL, shortURL); err != nil {
+		if _, err = stmt.ExecContext(ctx, user, u.OriginalURL, shortURL); err != nil {
 			return nil, err
 		}
 		result = append(result, handlers.ManyPostResponse{
@@ -146,111 +140,26 @@ func (db *PosrgreDataBase) AddManyURL(urls []handlers.ManyPostURL, user string) 
 	return result, nil
 }
 
-func (db *PosrgreDataBase) DeleteManyURL(urls []string, user string) error {
-	// inputCh := make(chan []string)
-	// go func() {
-	// 	for _, url := range urls {
-	// 		inputCh <- []string{url, user}
-	// 	}
-	// 	close(inputCh)
-	// }()
-
-	// setOfurls := []string{}
-
-	// fanOutChs := fanOut(inputCh, numOfWorkers)
-	// workerChs := make([]chan string, 0, numOfWorkers)
-	// for _, fanOutCh := range fanOutChs {
-	// 	newWorker := db.chanIsOwner(fanOutCh)
-	// 	workerChs = append(workerChs, newWorker)
-	// }
-
-	// for url := range fanIn(workerChs...) {
-	// 	setOfurls = append(setOfurls, url)
-	// }
+func (db *PosrgreDataBase) DeleteManyURL(ctx context.Context, urls []string, user string) error {
 
 	sql := `UPDATE urls SET is_deleted = true WHERE short_url = ANY ($1);`
-	_, err := db.conn.ExecContext(db.ctx, sql, pq.Array(urls))
+	urlsToDelete := []string{}
+	for _, url := range urls {
+		if db.isOwner(ctx, url, user) {
+			urlsToDelete = append(urlsToDelete, url)
+		}
+	}
+	_, err := db.conn.ExecContext(ctx, sql, pq.Array(urlsToDelete))
 	if err != nil {
-		log.Println(err)
+		return err
 	}
 	return nil
 }
 
-func (db *PosrgreDataBase) IsOwner(url string, user string) bool {
+func (db *PosrgreDataBase) isOwner(ctx context.Context, url string, user string) bool {
 	sqlGetURLRow := `SELECT user_id FROM urls WHERE short_url=$1 FETCH FIRST ROW ONLY;`
-	query := db.conn.QueryRowContext(db.ctx, sqlGetURLRow, url)
+	query := db.conn.QueryRowContext(ctx, sqlGetURLRow, url)
 	result := ""
 	query.Scan(&result)
 	return result == user
-}
-
-func fanOut(inputCh chan []string, n int) []chan []string {
-	cs := make([]chan []string, 0, n)
-	for i := 0; i < n; i++ {
-		cs = append(cs, make(chan []string))
-	}
-
-	go func() {
-		defer func(cs []chan []string) {
-			for _, c := range cs {
-				close(c)
-			}
-		}(cs)
-
-		for i := 0; i < len(cs); i++ {
-			if i == len(cs)-1 {
-				i = 0
-			}
-
-			num, ok := <-inputCh
-			if !ok {
-				return
-			}
-
-			cs[i] <- num
-		}
-	}()
-
-	return cs
-}
-
-func (db *PosrgreDataBase) chanIsOwner(input <-chan []string) (out chan string) {
-	out = make(chan string)
-
-	go func() {
-		for item := range input {
-			isOwner := db.IsOwner(item[0], item[1])
-			if isOwner {
-				out <- item[0]
-			}
-		}
-
-		close(out)
-	}()
-
-	return out
-}
-
-func fanIn(chs ...chan string) (out chan string) {
-	out = make(chan string)
-
-	go func() {
-		wg := &sync.WaitGroup{}
-
-		for _, ch := range chs {
-			wg.Add(1)
-
-			go func(items chan string) {
-				defer wg.Done()
-				for item := range items {
-					out <- item
-				}
-			}(ch)
-		}
-
-		wg.Wait()
-		close(out)
-	}()
-
-	return out
 }

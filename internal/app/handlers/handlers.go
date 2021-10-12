@@ -1,27 +1,27 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/shortener"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/workers"
 )
 
 //go:generate mockery --name=RepositoryInterface -case camel -inpkg
 
 type RepositoryInterface interface {
-	AddURL(longURL string, shortURL string, user string) error
-	GetURL(shortURL string) (string, error)
-	GetUserURL(user string) ([]ResponseGetURL, error)
-	AddManyURL(urls []ManyPostURL, user string) ([]ManyPostResponse, error)
-	DeleteManyURL(urls []string, user string) error
-	IsOwner(url string, user string) bool
-	Ping() error
+	AddURL(ctx context.Context, longURL string, shortURL string, user string) error
+	GetURL(ctx context.Context, shortURL string) (string, error)
+	GetUserURL(ctx context.Context, user string) ([]ResponseGetURL, error)
+	AddManyURL(ctx context.Context, urls []ManyPostURL, user string) ([]ManyPostResponse, error)
+	DeleteManyURL(ctx context.Context, urls []string, user string) error
+	Ping(ctx context.Context) error
 }
 
 type PostURL struct {
@@ -66,18 +66,20 @@ func NewErrorWithDB(err error, title string) error {
 type Handler struct {
 	repo    RepositoryInterface
 	baseURL string
+	wp      workers.WorkerPool
 }
 
-func New(repo RepositoryInterface, basURL string) *Handler {
+func New(repo RepositoryInterface, basURL string, wp *workers.WorkerPool) *Handler {
 	return &Handler{
 		repo:    repo,
 		baseURL: basURL,
+		wp:      *wp,
 	}
 }
 
 func (h *Handler) RetriveShortURL(c *gin.Context) {
 	result := map[string]string{}
-	long, err := h.repo.GetURL(c.Param("id"))
+	long, err := h.repo.GetURL(c.Request.Context(), c.Param("id"))
 
 	if err != nil {
 		var ue *ErrorWithDB
@@ -107,7 +109,7 @@ func (h *Handler) CreateShortURL(c *gin.Context) {
 	}
 	longURL := string(body)
 	shortURL := shortener.ShorterURL(longURL)
-	err = h.repo.AddURL(longURL, shortURL, c.GetString("userId"))
+	err = h.repo.AddURL(c.Request.Context(), longURL, shortURL, c.GetString("userId"))
 	if err != nil {
 		var ue *ErrorWithDB
 		if errors.As(err, &ue) && ue.Title == "UniqConstraint" {
@@ -140,7 +142,7 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 		return
 	}
 	shortURL := shortener.ShorterURL(url.URL)
-	err = h.repo.AddURL(url.URL, shortURL, c.GetString("userId"))
+	err = h.repo.AddURL(c.Request.Context(), url.URL, shortURL, c.GetString("userId"))
 	if err != nil {
 		var ue *ErrorWithDB
 		if errors.As(err, &ue) && ue.Title == "UniqConstraint" {
@@ -156,7 +158,7 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 }
 
 func (h *Handler) GetUserURL(c *gin.Context) {
-	result, err := h.repo.GetUserURL(c.GetString("userId"))
+	result, err := h.repo.GetUserURL(c.Request.Context(), c.GetString("userId"))
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, err)
 		return
@@ -169,7 +171,7 @@ func (h *Handler) GetUserURL(c *gin.Context) {
 }
 
 func (h *Handler) PingDB(c *gin.Context) {
-	err := h.repo.Ping()
+	err := h.repo.Ping(c.Request.Context())
 	if err != nil {
 		c.String(http.StatusInternalServerError, "")
 		return
@@ -181,7 +183,7 @@ func (h *Handler) CreateBatch(c *gin.Context) {
 	var data []ManyPostURL
 
 	c.BindJSON(&data)
-	response, err := h.repo.AddManyURL(data, c.GetString("userId"))
+	response, err := h.repo.AddManyURL(c.Request.Context(), data, c.GetString("userId"))
 	if err != nil {
 		message := make(map[string]string)
 		message["detail"] = err.Error()
@@ -215,117 +217,20 @@ func (h *Handler) DeleteBatch(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, message)
 		return
 	}
-	go func() {
-		wp := NewWorkerPool(10, h.repo)
-		wp.DeleteURL(data, c.GetString("userId"))
-		h.repo.DeleteManyURL(data, c.GetString("userId"))
-	}()
+	sliceData := [][]string{}
+	for i := 10; i <= len(data); i += 10 {
+		sliceData = append(sliceData, data[i-10:i])
+	}
+	rem := len(data) % 10
+	if rem > 0 {
+		sliceData = append(sliceData, data[len(data)-rem:])
+	}
+	for _, taskData := range sliceData {
+		h.wp.Push(func(ctx context.Context) error {
+			err := h.repo.DeleteManyURL(ctx, taskData, c.GetString("userId"))
+			return err
+		})
+	}
 
 	c.Status(http.StatusAccepted)
-}
-
-type WorkerPool struct {
-	NumOfWorkers int
-	inputCh      chan []string
-	workers      []chan string
-	pool         []chan []string
-	repo         RepositoryInterface
-}
-
-func NewWorkerPool(numOfWorkers int, repo RepositoryInterface) *WorkerPool {
-	return &WorkerPool{
-		NumOfWorkers: numOfWorkers,
-		workers:      make([]chan string, 0, numOfWorkers),
-		inputCh:      make(chan []string),
-		repo:         repo,
-	}
-}
-
-func (wp *WorkerPool) fanOut() {
-	cs := make([]chan []string, 0, wp.NumOfWorkers)
-	for i := 0; i < wp.NumOfWorkers; i++ {
-		cs = append(cs, make(chan []string))
-	}
-	go func() {
-		defer func(cs []chan []string) {
-			for _, c := range cs {
-				close(c)
-			}
-		}(cs)
-
-		for i := 0; i < len(cs); i++ {
-			if i == len(cs)-1 {
-				i = 0
-			}
-
-			url, ok := <-wp.inputCh
-			if !ok {
-				return
-			}
-
-			cs[i] <- url
-		}
-	}()
-	wp.pool = cs
-}
-
-func (wp *WorkerPool) fanIn() chan string {
-	out := make(chan string)
-
-	go func() {
-		wg := &sync.WaitGroup{}
-
-		for _, ch := range wp.workers {
-			wg.Add(1)
-
-			go func(items chan string) {
-				defer wg.Done()
-				for item := range items {
-
-					out <- item
-
-				}
-			}(ch)
-		}
-		wg.Wait()
-		close(out)
-	}()
-	return out
-}
-
-func (wp *WorkerPool) NewWorker(input <-chan []string) chan string {
-	out := make(chan string)
-
-	go func() {
-		for item := range input {
-			isOwner := wp.repo.IsOwner(item[0], item[1])
-			if isOwner {
-				out <- item[0]
-			}
-		}
-
-		close(out)
-	}()
-	return out
-}
-
-func (wp *WorkerPool) DeleteURL(urls []string, user string) {
-	go func() {
-		for _, url := range urls {
-			wp.inputCh <- []string{url, user}
-		}
-		close(wp.inputCh)
-	}()
-	urlsToDelete := []string{"1"}
-	// urlsToDelete = append(urlsToDelete, "s")
-	wp.fanOut()
-
-	for _, ch := range wp.pool {
-		wp.workers = append(wp.workers, wp.NewWorker(ch))
-	}
-	for url := range wp.fanIn() {
-		urlsToDelete = append(urlsToDelete, url)
-	}
-
-	// wp.repo.DeleteManyURL(urlsToDelete, user)
 }

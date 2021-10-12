@@ -17,12 +17,13 @@ import (
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/middlewares"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/database"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/filebase"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/workers"
 )
 
-func setupRouter(repo handlers.RepositoryInterface, cfg *configuration.Config) *gin.Engine {
+func setupRouter(repo handlers.RepositoryInterface, cfg *configuration.Config, wp *workers.WorkerPool) *gin.Engine {
 	router := gin.Default()
 
-	handler := handlers.New(repo, cfg.BaseURL)
+	handler := handlers.New(repo, cfg.BaseURL, wp)
 
 	router.Use(middlewares.GzipEncodeMiddleware())
 	router.Use(middlewares.GzipDecodeMiddleware())
@@ -49,6 +50,12 @@ func main() {
 
 	var handler *gin.Engine
 
+	wp := workers.New(ctx, cfg.NumOfWorkers, cancel)
+
+	go func() {
+		wp.Run(ctx)
+	}()
+
 	if cfg.DataBase.DataBaseURI != "" {
 		db, err := sql.Open("postgres", cfg.DataBase.DataBaseURI)
 		if err != nil {
@@ -57,9 +64,9 @@ func main() {
 		defer db.Close()
 		services.SetUpDataBase(db, ctx)
 
-		handler = setupRouter(database.NewDatabaseRepository(ctx, cfg.BaseURL, db), cfg)
+		handler = setupRouter(database.NewDatabaseRepository(cfg.BaseURL, db), cfg, wp)
 	} else {
-		handler = setupRouter(filebase.NewFileRepository(cfg.FilePath, cfg.BaseURL), cfg)
+		handler = setupRouter(filebase.NewFileRepository(ctx, cfg.FilePath, cfg.BaseURL), cfg, wp)
 	}
 
 	server := &http.Server{
