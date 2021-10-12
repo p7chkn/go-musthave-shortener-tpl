@@ -21,11 +21,10 @@ func New(ctx context.Context, numOfWorkers int, cancel context.CancelFunc) *Work
 		inputCh:      make(chan func(ctx context.Context) error),
 		errorCh:      make(chan error),
 	}
-	wp.run(ctx)
 	return wp
 }
 
-func (wp *WorkerPool) run(ctx context.Context) {
+func (wp *WorkerPool) Run(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 	g, _ := errgroup.WithContext(ctx)
 	for i := 0; i < wp.numOfWorkers; i++ {
@@ -49,18 +48,15 @@ func (wp *WorkerPool) run(ctx context.Context) {
 			return nil
 		})
 	}
-	go func() {
-		defer func() {
-			close(wp.inputCh)
-			close(wp.errorCh)
-			cancel()
-		}()
-		if err := g.Wait(); err != nil {
-			log.Println(err)
-			return
-		}
-
+	defer func() {
+		close(wp.inputCh)
+		close(wp.errorCh)
+		cancel()
 	}()
+	if err := g.Wait(); err != nil {
+		log.Println(err)
+		return
+	}
 
 }
 

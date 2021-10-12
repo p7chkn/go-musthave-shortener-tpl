@@ -52,6 +52,10 @@ func main() {
 
 	wp := workers.New(ctx, cfg.NumOfWorkers, cancel)
 
+	go func() {
+		wp.Run(ctx)
+	}()
+
 	if cfg.DataBase.DataBaseURI != "" {
 		db, err := sql.Open("postgres", cfg.DataBase.DataBaseURI)
 		if err != nil {
