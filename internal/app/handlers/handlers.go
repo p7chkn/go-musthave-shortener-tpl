@@ -225,11 +225,13 @@ func (h *Handler) DeleteBatch(c *gin.Context) {
 	if rem > 0 {
 		sliceData = append(sliceData, data[len(data)-rem:])
 	}
-	for _, taskData := range sliceData {
-		h.wp.Push(func(ctx context.Context) error {
-			err := h.repo.DeleteManyURL(ctx, taskData, c.GetString("userId"))
-			return err
-		})
+	for _, item := range sliceData {
+		func(taskData []string) {
+			h.wp.Push(func(ctx context.Context) error {
+				err := h.repo.DeleteManyURL(ctx, taskData, c.GetString("userId"))
+				return err
+			})
+		}(item)
 	}
 
 	c.Status(http.StatusAccepted)
