@@ -34,6 +34,7 @@ func setupRouter(ctx context.Context, repo RepositoryInterface, baseURL string, 
 	router.POST("/api/shorten", handler.ShortenURL)
 	router.GET("/user/urls", handler.GetUserURL)
 	router.POST("/api/shorten/batch", handler.CreateBatch)
+	router.DELETE("/api/user/urls", handler.DeleteBatch)
 	router.HandleMethodNotAllowed = true
 	return router, cfg
 }
@@ -435,68 +436,60 @@ func TestCreateBatch(t *testing.T) {
 	}
 }
 
-// func TestDeleteBatch(t *testing.T) {
-// 	type want struct {
-// 		code        int
-// 		contentType string
-// 		response    string
-// 	}
-// 	tests := []struct {
-// 		name     string
-// 		query    string
-// 		body string
-// 		response []ResponseGetURL
-// 		want     want
-// 	}{
-// 		{
-// 			name:  "correct DELETE",
-// 			query: "user/urls",
-// 			body: `["1"]`,
-// 			response: []ResponseGetURL{
-// 				{
-// 					ShortURL:    "http://localhost:8080/1yhVmSPGQlZn3EnrI2kd7Oxu5UM=",
-// 					OriginalURL: "http://hbqouwjbx5jl.ru/lkm0skvkix1ejv",
-// 				}},
-// 			want: want{
-// 				code:        202,
-// 				contentType: `application/json; charset=utf-8`,
-// 				response: `[{
-// 					"short_url": "http://localhost:8080/1yhVmSPGQlZn3EnrI2kd7Oxu5UM=",
-// 					"original_url": "http://hbqouwjbx5jl.ru/lkm0skvkix1ejv"
-// 				}]`,
-// 			},
-// 		},
-// 	}
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
+func TestDeleteBatch(t *testing.T) {
+	type want struct {
+		code        int
+		contentType string
+		response    string
+	}
+	tests := []struct {
+		name  string
+		query string
+		body  string
+		want  want
+	}{
+		{
+			name:  "correct DELETE",
+			query: "api/user/urls",
+			body:  `["1", "2", "3", "4"]`,
+			want: want{
+				code:        202,
+				contentType: `application/json; charset=utf-8`,
+				response: `[{
+					"short_url": "http://localhost:8080/1yhVmSPGQlZn3EnrI2kd7Oxu5UM=",
+					"original_url": "http://hbqouwjbx5jl.ru/lkm0skvkix1ejv"
+				}]`,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 
-// 			ctx := context.Background()
-// 			userID, _ := uuid.NewV4()
-// 			repoMock := new(MockRepositoryInterface)
-// 			repoMock.On("GetUserURL", userID.String()).Return(tt.response, nil)
-// 			router, cfg := setupRouter(ctx, repoMock, configuration.BaseURL)
+			ctx := context.Background()
+			wp := workers.New(ctx, configuration.NumOfWorkers)
 
-// 			encoder, _ := utils.New(cfg.Key)
+			go func() {
+				wp.Run(ctx)
+			}()
+			userID, _ := uuid.NewV4()
+			repoMock := new(MockRepositoryInterface)
+			repoMock.On("DeleteManyURL", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			router, cfg := setupRouter(ctx, repoMock, configuration.BaseURL, wp)
 
-// 			cookie := http.Cookie{
-// 				Name:  "userId",
-// 				Value: encoder.EncodeUUIDtoString(userID.Bytes()),
-// 			}
+			encoder, _ := utils.New(cfg.Key)
 
-// 			w := httptest.NewRecorder()
-// 			req, _ := http.NewRequest(http.MethodGet, "/"+tt.query, nil)
-// 			req.AddCookie(&cookie)
+			cookie := http.Cookie{
+				Name:  "userId",
+				Value: encoder.EncodeUUIDtoString(userID.Bytes()),
+			}
+			body := strings.NewReader(tt.body)
+			w := httptest.NewRecorder()
+			req, _ := http.NewRequest(http.MethodDelete, "/"+tt.query, body)
+			req.AddCookie(&cookie)
 
-// 			router.ServeHTTP(w, req)
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.want.code, w.Code)
 
-// 			assert.Equal(t, tt.want.contentType, w.Header()["Content-Type"][0])
-// 			assert.Equal(t, tt.want.code, w.Code)
-// 			resBody, err := ioutil.ReadAll(w.Body)
-// 			if err != nil {
-// 				t.Fatal(err)
-// 			}
-// 			assert.JSONEq(t, tt.want.response, string(resBody))
-
-// 		})
-// 	}
-// }
+		})
+	}
+}
