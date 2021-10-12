@@ -15,18 +15,19 @@ import (
 	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/configuration"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/middlewares"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/utils"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/workers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-func setupRouter(ctx context.Context, repo RepositoryInterface, baseURL string) (*gin.Engine, *configuration.Config) {
+func setupRouter(ctx context.Context, repo RepositoryInterface, baseURL string, wp *workers.WorkerPool) (*gin.Engine, *configuration.Config) {
 	router := gin.Default()
 	key, _ := configuration.GenerateRandom(16)
 	cfg := &configuration.Config{
 		Key:     key,
 		BaseURL: configuration.BaseURL,
 	}
-	handler := New(repo, cfg.BaseURL, cfg.NumOfWorkers)
+	handler := New(repo, cfg.BaseURL, wp)
 	router.Use(middlewares.CookiMiddleware(cfg))
 	router.GET("/:id", handler.RetriveShortURL)
 	router.POST("/", handler.CreateShortURL)
@@ -86,9 +87,14 @@ func TestRetriveShortURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
+			wp := workers.New(ctx, configuration.NumOfWorkers)
+
+			go func() {
+				wp.Run(ctx)
+			}()
 			repoMock := new(MockRepositoryInterface)
-			repoMock.On("GetURL", tt.query).Return(tt.result, tt.err)
-			router, _ := setupRouter(ctx, repoMock, configuration.BaseURL)
+			repoMock.On("GetURL", mock.Anything, tt.query).Return(tt.result, tt.err)
+			router, _ := setupRouter(ctx, repoMock, configuration.BaseURL, wp)
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest(http.MethodGet, "/"+tt.query, nil)
 			router.ServeHTTP(w, req)
@@ -145,9 +151,14 @@ func TestCreateShortURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
+			wp := workers.New(ctx, configuration.NumOfWorkers)
+
+			go func() {
+				wp.Run(ctx)
+			}()
 			repoMock := new(MockRepositoryInterface)
-			repoMock.On("AddURL", tt.body, tt.result, mock.Anything).Return(nil)
-			router, _ := setupRouter(ctx, repoMock, configuration.BaseURL)
+			repoMock.On("AddURL", mock.Anything, tt.body, tt.result, mock.Anything).Return(nil)
+			router, _ := setupRouter(ctx, repoMock, configuration.BaseURL, wp)
 			body := strings.NewReader(tt.body)
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest(http.MethodPost, "/"+tt.query, body)
@@ -208,9 +219,14 @@ func TestShortenURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
+			wp := workers.New(ctx, configuration.NumOfWorkers)
+
+			go func() {
+				wp.Run(ctx)
+			}()
 			repoMock := new(MockRepositoryInterface)
-			repoMock.On("AddURL", tt.rawData, tt.result, mock.Anything).Return(nil)
-			router, _ := setupRouter(ctx, repoMock, configuration.BaseURL)
+			repoMock.On("AddURL", mock.Anything, tt.rawData, tt.result, mock.Anything).Return(nil)
+			router, _ := setupRouter(ctx, repoMock, configuration.BaseURL, wp)
 			body := strings.NewReader(tt.body)
 			w := httptest.NewRecorder()
 			fmt.Println(tt.query)
@@ -264,10 +280,15 @@ func TestGetUserURL(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			ctx := context.Background()
+			wp := workers.New(ctx, configuration.NumOfWorkers)
+
+			go func() {
+				wp.Run(ctx)
+			}()
 			userID, _ := uuid.NewV4()
 			repoMock := new(MockRepositoryInterface)
-			repoMock.On("GetUserURL", userID.String()).Return(tt.response, nil)
-			router, cfg := setupRouter(ctx, repoMock, configuration.BaseURL)
+			repoMock.On("GetUserURL", mock.Anything, userID.String()).Return(tt.response, nil)
+			router, cfg := setupRouter(ctx, repoMock, configuration.BaseURL, wp)
 
 			encoder, _ := utils.New(cfg.Key)
 
@@ -378,11 +399,16 @@ func TestCreateBatch(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			ctx := context.Background()
+			wp := workers.New(ctx, configuration.NumOfWorkers)
+
+			go func() {
+				wp.Run(ctx)
+			}()
 			userID, _ := uuid.NewV4()
 			repoMock := new(MockRepositoryInterface)
-			repoMock.On("AddManyURL", tt.mockData, userID.String(), mock.Anything).Return(tt.mockResponce, nil)
+			repoMock.On("AddManyURL", mock.Anything, tt.mockData, userID.String(), mock.Anything).Return(tt.mockResponce, nil)
 
-			router, cfg := setupRouter(ctx, repoMock, configuration.BaseURL)
+			router, cfg := setupRouter(ctx, repoMock, configuration.BaseURL, wp)
 			encoder, _ := utils.New(cfg.Key)
 
 			cookie := http.Cookie{
