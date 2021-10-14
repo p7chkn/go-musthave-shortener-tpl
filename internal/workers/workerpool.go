@@ -12,10 +12,10 @@ type WorkerPool struct {
 	inputCh      chan func(ctx context.Context) error
 }
 
-func New(ctx context.Context, numOfWorkers int) *WorkerPool {
+func New(ctx context.Context, numOfWorkers int, buffer int) *WorkerPool {
 	wp := &WorkerPool{
 		numOfWorkers: numOfWorkers,
-		inputCh:      make(chan func(ctx context.Context) error),
+		inputCh:      make(chan func(ctx context.Context) error, buffer),
 	}
 	return wp
 }

@@ -97,14 +97,12 @@ func (h *Handler) RetriveShortURL(c *gin.Context) {
 }
 
 func (h *Handler) CreateShortURL(c *gin.Context) {
-	result := map[string]string{}
 	defer c.Request.Body.Close()
 
 	body, err := ioutil.ReadAll(c.Request.Body)
 
 	if err != nil {
-		result["detail"] = "Bad request"
-		c.IndentedJSON(http.StatusBadRequest, result)
+		h.handleError(c, err)
 		return
 	}
 	longURL := string(body)
@@ -123,6 +121,7 @@ func (h *Handler) CreateShortURL(c *gin.Context) {
 }
 
 func (h *Handler) ShortenURL(c *gin.Context) {
+
 	result := map[string]string{}
 	var url PostURL
 
@@ -131,14 +130,12 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 	body, err := ioutil.ReadAll(c.Request.Body)
 
 	if err != nil {
-		result["detail"] = "Bad request"
-		c.IndentedJSON(http.StatusBadRequest, result)
+		h.handleError(c, err)
 		return
 	}
 	json.Unmarshal(body, &url)
 	if url.URL == "" {
-		result["detail"] = "Bad request"
-		c.IndentedJSON(http.StatusBadRequest, result)
+		h.handleError(c, errors.New("Bad request"))
 		return
 	}
 	shortURL := shortener.ShorterURL(url.URL)
@@ -181,19 +178,22 @@ func (h *Handler) PingDB(c *gin.Context) {
 
 func (h *Handler) CreateBatch(c *gin.Context) {
 	var data []ManyPostURL
+	defer c.Request.Body.Close()
 
-	c.BindJSON(&data)
+	body, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	json.Unmarshal(body, &data)
+	fmt.Println(data)
 	response, err := h.repo.AddManyURL(c.Request.Context(), data, c.GetString("userId"))
 	if err != nil {
-		message := make(map[string]string)
-		message["detail"] = err.Error()
-		c.IndentedJSON(http.StatusBadRequest, message)
+		h.handleError(c, err)
 		return
 	}
 	if response == nil {
-		message := make(map[string]string)
-		message["detail"] = "Bad request"
-		c.IndentedJSON(http.StatusBadRequest, message)
+		h.handleError(c, errors.New("Bad request"))
 		return
 	}
 	c.IndentedJSON(http.StatusCreated, response)
@@ -204,17 +204,13 @@ func (h *Handler) DeleteBatch(c *gin.Context) {
 
 	body, err := ioutil.ReadAll(c.Request.Body)
 	if err != nil {
-		message := make(map[string]string)
-		message["detail"] = err.Error()
-		c.IndentedJSON(http.StatusBadRequest, message)
+		h.handleError(c, err)
 		return
 	}
 	var data []string
 	err = json.Unmarshal([]byte(body), &data)
 	if err != nil {
-		message := make(map[string]string)
-		message["detail"] = err.Error()
-		c.IndentedJSON(http.StatusBadRequest, message)
+		h.handleError(c, err)
 		return
 	}
 	sliceData := [][]string{}
@@ -235,4 +231,21 @@ func (h *Handler) DeleteBatch(c *gin.Context) {
 	}
 
 	c.Status(http.StatusAccepted)
+}
+
+func (h *Handler) handleError(c *gin.Context, err error) {
+	message := make(map[string]string)
+	message["detail"] = err.Error()
+	c.IndentedJSON(http.StatusBadRequest, message)
+}
+
+func (h *Handler) setBodyToData(c *gin.Context, obj interface{}) error {
+	defer c.Request.Body.Close()
+
+	body, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		return err
+	}
+	json.Unmarshal(body, &obj)
+	return nil
 }

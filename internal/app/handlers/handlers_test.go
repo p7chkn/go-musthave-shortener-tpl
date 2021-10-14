@@ -88,7 +88,7 @@ func TestRetriveShortURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
-			wp := workers.New(ctx, configuration.NumOfWorkers)
+			wp := workers.New(ctx, configuration.NumOfWorkers, configuration.WorkersBuffer)
 
 			go func() {
 				wp.Run(ctx)
@@ -152,7 +152,7 @@ func TestCreateShortURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
-			wp := workers.New(ctx, configuration.NumOfWorkers)
+			wp := workers.New(ctx, configuration.NumOfWorkers, configuration.WorkersBuffer)
 
 			go func() {
 				wp.Run(ctx)
@@ -220,7 +220,7 @@ func TestShortenURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
-			wp := workers.New(ctx, configuration.NumOfWorkers)
+			wp := workers.New(ctx, configuration.NumOfWorkers, configuration.WorkersBuffer)
 
 			go func() {
 				wp.Run(ctx)
@@ -281,7 +281,7 @@ func TestGetUserURL(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			ctx := context.Background()
-			wp := workers.New(ctx, configuration.NumOfWorkers)
+			wp := workers.New(ctx, configuration.NumOfWorkers, configuration.WorkersBuffer)
 
 			go func() {
 				wp.Run(ctx)
@@ -400,7 +400,7 @@ func TestCreateBatch(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			ctx := context.Background()
-			wp := workers.New(ctx, configuration.NumOfWorkers)
+			wp := workers.New(ctx, configuration.NumOfWorkers, configuration.WorkersBuffer)
 
 			go func() {
 				wp.Run(ctx)
@@ -466,7 +466,7 @@ func TestDeleteBatch(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			ctx := context.Background()
-			wp := workers.New(ctx, configuration.NumOfWorkers)
+			wp := workers.New(ctx, configuration.NumOfWorkers, configuration.WorkersBuffer)
 
 			go func() {
 				wp.Run(ctx)

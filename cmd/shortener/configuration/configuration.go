@@ -18,16 +18,18 @@ const (
 	BaseURL      = "http://localhost:8080/"
 	DataBaseURI  = ""
 	// DataBaseURI  = "postgresql://postgres:1234@localhost:5432?sslmode=disable"
-	NumOfWorkers = 10
+	NumOfWorkers  = 10
+	WorkersBuffer = 100
 )
 
 type Config struct {
-	ServerAdress string `env:"SERVER_ADDRESS"`
-	BaseURL      string `env:"BASE_URL"`
-	FilePath     string `env:"FILE_STORAGE_PATH"`
-	NumOfWorkers int
-	DataBase     ConfigDatabase
-	Key          []byte
+	ServerAdress   string `env:"SERVER_ADDRESS"`
+	BaseURL        string `env:"BASE_URL"`
+	FilePath       string `env:"FILE_STORAGE_PATH"`
+	NumOfWorkers   int    `env:"NUMBER_OF_WORKERS"`
+	DataBase       ConfigDatabase
+	Key            []byte
+	WorekersBuffer int `env:"WORKERS_BUFFER"`
 }
 
 type ConfigDatabase struct {
@@ -44,6 +46,7 @@ func New() *Config {
 	flagFilePath := flag.String("f", FileName, "file path")
 	flagDataBaseURI := flag.String("d", DataBaseURI, "URI for database")
 	flagNumOfWorkers := flag.Int("w", NumOfWorkers, "Number of workers")
+	flagBubfferOfWorkers := flag.Int("wb", WorkersBuffer, "Workers channel buffer")
 	flag.Parse()
 
 	if *flagDataBaseURI != DataBaseURI {
@@ -51,12 +54,13 @@ func New() *Config {
 	}
 
 	cfg := Config{
-		ServerAdress: ServerAdress,
-		FilePath:     FileName,
-		BaseURL:      BaseURL,
-		DataBase:     dbCfg,
-		Key:          make([]byte, 16),
-		NumOfWorkers: NumOfWorkers,
+		ServerAdress:   ServerAdress,
+		FilePath:       FileName,
+		BaseURL:        BaseURL,
+		DataBase:       dbCfg,
+		Key:            make([]byte, 16),
+		NumOfWorkers:   NumOfWorkers,
+		WorekersBuffer: WorkersBuffer,
 	}
 	cfg.BaseURL = fmt.Sprintf("http://%s/", cfg.ServerAdress)
 
@@ -77,6 +81,10 @@ func New() *Config {
 	}
 	if *flagNumOfWorkers != NumOfWorkers {
 		cfg.NumOfWorkers = *flagNumOfWorkers
+	}
+
+	if *flagBubfferOfWorkers != WorkersBuffer {
+		cfg.WorekersBuffer = *flagBubfferOfWorkers
 	}
 
 	if cfg.FilePath != FileName {

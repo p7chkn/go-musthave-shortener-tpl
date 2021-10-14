@@ -50,7 +50,7 @@ func main() {
 
 	var handler *gin.Engine
 
-	wp := workers.New(ctx, cfg.NumOfWorkers)
+	wp := workers.New(ctx, cfg.NumOfWorkers, cfg.WorekersBuffer)
 
 	go func() {
 		wp.Run(ctx)
