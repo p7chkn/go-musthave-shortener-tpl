@@ -212,7 +212,7 @@ func TestShortenURL(t *testing.T) {
 			result:  "98fv58Wr3hGGIzm2-aH2zA628Ng=",
 			want: want{
 				code:        400,
-				response:    `{"detail": "Bad request"}`,
+				response:    `{"detail": "bad request"}`,
 				contentType: `application/json; charset=utf-8`,
 			},
 		},
