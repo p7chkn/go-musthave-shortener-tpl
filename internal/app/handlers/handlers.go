@@ -135,7 +135,7 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 	}
 	json.Unmarshal(body, &url)
 	if url.URL == "" {
-		h.handleError(c, errors.New("Bad request"))
+		h.handleError(c, errors.New("bad request"))
 		return
 	}
 	shortURL := shortener.ShorterURL(url.URL)
@@ -193,7 +193,7 @@ func (h *Handler) CreateBatch(c *gin.Context) {
 		return
 	}
 	if response == nil {
-		h.handleError(c, errors.New("Bad request"))
+		h.handleError(c, errors.New("bad request"))
 		return
 	}
 	c.IndentedJSON(http.StatusCreated, response)
