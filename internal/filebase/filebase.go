@@ -12,8 +12,8 @@ import (
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/handlers"
 )
 
-func NewFileRepository(filePath string, baseURL string) handlers.RepositoryInterface {
-	return handlers.RepositoryInterface(NewRepositoryMap(filePath, baseURL))
+func NewFileRepository(ctx context.Context, filePath string, baseURL string) handlers.RepositoryInterface {
+	return handlers.RepositoryInterface(NewRepositoryMap(ctx, filePath, baseURL))
 }
 
 type RepositoryMap struct {
@@ -23,7 +23,7 @@ type RepositoryMap struct {
 	usersURL map[string][]string
 }
 
-func NewRepositoryMap(filePath string, baseURL string) *RepositoryMap {
+func NewRepositoryMap(ctx context.Context, filePath string, baseURL string) *RepositoryMap {
 	repo := RepositoryMap{
 		values:   map[string]string{},
 		filePath: filePath,
@@ -140,4 +140,8 @@ func (repo *RepositoryMap) writeRow(longURL string, shortURL string, filePath st
 	}
 
 	return writer.Flush()
+}
+
+func (repo *RepositoryMap) DeleteManyURL(ctx context.Context, urls []string, user string) error {
+	return nil
 }

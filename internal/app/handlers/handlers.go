@@ -10,14 +10,17 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/shortener"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/workers"
 )
 
-//go:generate mockery --name=RepositoryInterface --structname=MockRepositoryInterface --inpackage
+//go:generate mockery --name=RepositoryInterface -case camel -inpkg
+
 type RepositoryInterface interface {
 	AddURL(ctx context.Context, longURL string, shortURL string, user string) error
 	GetURL(ctx context.Context, shortURL string) (string, error)
 	GetUserURL(ctx context.Context, user string) ([]ResponseGetURL, error)
 	AddManyURL(ctx context.Context, urls []ManyPostURL, user string) ([]ManyPostResponse, error)
+	DeleteManyURL(ctx context.Context, urls []string, user string) error
 	Ping(ctx context.Context) error
 }
 
@@ -40,33 +43,37 @@ type ResponseGetURL struct {
 	OriginalURL string `json:"original_url"`
 }
 
-type UniqueConstraintError struct {
-	Err error
+type ErrorWithDB struct {
+	Err   error
+	Title string
 }
 
-func (ue *UniqueConstraintError) Error() string {
-	return fmt.Sprintf("%v", ue.Err)
+func (err *ErrorWithDB) Error() string {
+	return fmt.Sprintf("%v", err.Err)
 }
 
-func (ue *UniqueConstraintError) Unwrap() error {
-	return ue.Err
+func (err *ErrorWithDB) Unwrap() error {
+	return err.Err
 }
 
-func NewUniqueConstraintError(err error) error {
-	return &UniqueConstraintError{
-		Err: err,
+func NewErrorWithDB(err error, title string) error {
+	return &ErrorWithDB{
+		Err:   err,
+		Title: title,
 	}
 }
 
 type Handler struct {
 	repo    RepositoryInterface
 	baseURL string
+	wp      workers.WorkerPool
 }
 
-func New(repo RepositoryInterface, basURL string) *Handler {
+func New(repo RepositoryInterface, basURL string, wp *workers.WorkerPool) *Handler {
 	return &Handler{
 		repo:    repo,
 		baseURL: basURL,
+		wp:      *wp,
 	}
 }
 
@@ -75,6 +82,11 @@ func (h *Handler) RetriveShortURL(c *gin.Context) {
 	long, err := h.repo.GetURL(c.Request.Context(), c.Param("id"))
 
 	if err != nil {
+		var ue *ErrorWithDB
+		if errors.As(err, &ue) && ue.Title == "Deleted" {
+			c.Status(http.StatusGone)
+			return
+		}
 		result["detail"] = err.Error()
 		c.IndentedJSON(http.StatusNotFound, result)
 		return
@@ -85,22 +97,20 @@ func (h *Handler) RetriveShortURL(c *gin.Context) {
 }
 
 func (h *Handler) CreateShortURL(c *gin.Context) {
-	result := map[string]string{}
 	defer c.Request.Body.Close()
 
 	body, err := ioutil.ReadAll(c.Request.Body)
 
 	if err != nil {
-		result["detail"] = "Bad request"
-		c.IndentedJSON(http.StatusBadRequest, result)
+		h.handleError(c, err)
 		return
 	}
 	longURL := string(body)
 	shortURL := shortener.ShorterURL(longURL)
 	err = h.repo.AddURL(c.Request.Context(), longURL, shortURL, c.GetString("userId"))
 	if err != nil {
-		var ue *UniqueConstraintError
-		if errors.As(err, &ue) {
+		var ue *ErrorWithDB
+		if errors.As(err, &ue) && ue.Title == "UniqConstraint" {
 			c.String(http.StatusConflict, h.baseURL+shortURL)
 			return
 		}
@@ -111,6 +121,7 @@ func (h *Handler) CreateShortURL(c *gin.Context) {
 }
 
 func (h *Handler) ShortenURL(c *gin.Context) {
+
 	result := map[string]string{}
 	var url PostURL
 
@@ -119,21 +130,19 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 	body, err := ioutil.ReadAll(c.Request.Body)
 
 	if err != nil {
-		result["detail"] = "Bad request"
-		c.IndentedJSON(http.StatusBadRequest, result)
+		h.handleError(c, err)
 		return
 	}
 	json.Unmarshal(body, &url)
 	if url.URL == "" {
-		result["detail"] = "Bad request"
-		c.IndentedJSON(http.StatusBadRequest, result)
+		h.handleError(c, errors.New("bad request"))
 		return
 	}
 	shortURL := shortener.ShorterURL(url.URL)
 	err = h.repo.AddURL(c.Request.Context(), url.URL, shortURL, c.GetString("userId"))
 	if err != nil {
-		var ue *UniqueConstraintError
-		if errors.As(err, &ue) {
+		var ue *ErrorWithDB
+		if errors.As(err, &ue) && ue.Title == "UniqConstraint" {
 			result["result"] = h.baseURL + shortURL
 			c.IndentedJSON(http.StatusConflict, result)
 			return
@@ -169,20 +178,74 @@ func (h *Handler) PingDB(c *gin.Context) {
 
 func (h *Handler) CreateBatch(c *gin.Context) {
 	var data []ManyPostURL
+	defer c.Request.Body.Close()
 
-	c.BindJSON(&data)
+	body, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	json.Unmarshal(body, &data)
+	fmt.Println(data)
 	response, err := h.repo.AddManyURL(c.Request.Context(), data, c.GetString("userId"))
 	if err != nil {
-		message := make(map[string]string)
-		message["detail"] = err.Error()
-		c.IndentedJSON(http.StatusBadRequest, message)
+		h.handleError(c, err)
 		return
 	}
 	if response == nil {
-		message := make(map[string]string)
-		message["detail"] = "Bad request"
-		c.IndentedJSON(http.StatusBadRequest, message)
+		h.handleError(c, errors.New("bad request"))
 		return
 	}
 	c.IndentedJSON(http.StatusCreated, response)
+}
+
+func (h *Handler) DeleteBatch(c *gin.Context) {
+	defer c.Request.Body.Close()
+
+	body, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	var data []string
+	err = json.Unmarshal([]byte(body), &data)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	sliceData := [][]string{}
+	for i := 10; i <= len(data); i += 10 {
+		sliceData = append(sliceData, data[i-10:i])
+	}
+	rem := len(data) % 10
+	if rem > 0 {
+		sliceData = append(sliceData, data[len(data)-rem:])
+	}
+	for _, item := range sliceData {
+		func(taskData []string) {
+			h.wp.Push(func(ctx context.Context) error {
+				err := h.repo.DeleteManyURL(ctx, taskData, c.GetString("userId"))
+				return err
+			})
+		}(item)
+	}
+
+	c.Status(http.StatusAccepted)
+}
+
+func (h *Handler) handleError(c *gin.Context, err error) {
+	message := make(map[string]string)
+	message["detail"] = err.Error()
+	c.IndentedJSON(http.StatusBadRequest, message)
+}
+
+func (h *Handler) setBodyToData(c *gin.Context, obj interface{}) error {
+	defer c.Request.Body.Close()
+
+	body, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		return err
+	}
+	json.Unmarshal(body, &obj)
+	return nil
 }

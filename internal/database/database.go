@@ -13,6 +13,11 @@ import (
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/shortener"
 )
 
+type GetURLdata struct {
+	OriginURL string
+	IsDeleted bool
+}
+
 type PosrgreDataBase struct {
 	conn    *sql.DB
 	baseURL string
@@ -49,7 +54,7 @@ func (db *PosrgreDataBase) AddURL(ctx context.Context, longURL string, shortURL 
 
 	if err, ok := err.(*pq.Error); ok {
 		if err.Code == pgerrcode.UniqueViolation {
-			return handlers.NewUniqueConstraintError(err)
+			return handlers.NewErrorWithDB(err, "UniqConstraint")
 		}
 	}
 
@@ -58,21 +63,24 @@ func (db *PosrgreDataBase) AddURL(ctx context.Context, longURL string, shortURL 
 
 func (db *PosrgreDataBase) GetURL(ctx context.Context, shortURL string) (string, error) {
 
-	sqlGetURLRow := `SELECT origin_url FROM urls WHERE short_url=$1 FETCH FIRST ROW ONLY;`
+	sqlGetURLRow := `SELECT origin_url, is_deleted FROM urls WHERE short_url=$1 FETCH FIRST ROW ONLY;`
 	query := db.conn.QueryRowContext(ctx, sqlGetURLRow, shortURL)
-	result := ""
-	query.Scan(&result)
-	if result == "" {
-		return "", errors.New("not found")
+	result := GetURLdata{}
+	query.Scan(&result.OriginURL, &result.IsDeleted)
+	if result.OriginURL == "" {
+		return "", handlers.NewErrorWithDB(errors.New("not found"), "Not found")
 	}
-	return result, nil
+	if result.IsDeleted {
+		return "", handlers.NewErrorWithDB(errors.New("Deleted"), "Deleted")
+	}
+	return result.OriginURL, nil
 }
 
 func (db *PosrgreDataBase) GetUserURL(ctx context.Context, user string) ([]handlers.ResponseGetURL, error) {
 
 	result := []handlers.ResponseGetURL{}
 
-	sqlGetUserURL := `SELECT origin_url, short_url FROM urls WHERE user_id=$1;`
+	sqlGetUserURL := `SELECT origin_url, short_url FROM urls WHERE user_id=$1 AND is_deleted=false;`
 	rows, err := db.conn.QueryContext(ctx, sqlGetUserURL, user)
 	if err != nil {
 		return result, err
@@ -107,9 +115,6 @@ func (db *PosrgreDataBase) AddManyURL(ctx context.Context, urls []handlers.ManyP
 	defer tx.Rollback()
 
 	stmt, err := tx.PrepareContext(ctx, `INSERT INTO urls (user_id, origin_url, short_url) VALUES ($1, $2, $3)`)
-	// _ = ` INSERT INTO urls (user_id, origin_url, short_url) VALUES ('a72c8923-3220-e8b9-0357-da73b5e3373c', 'http://iloverestaurant.ru/','98fv58Wr3hGGIzm2-aH2zA628Ng=')
-	// ON CONFLICT (short_url)
-	// DO SELECT * FROM urls;`
 
 	if err != nil {
 		return nil, err
@@ -133,4 +138,28 @@ func (db *PosrgreDataBase) AddManyURL(ctx context.Context, urls []handlers.ManyP
 	}
 	tx.Commit()
 	return result, nil
+}
+
+func (db *PosrgreDataBase) DeleteManyURL(ctx context.Context, urls []string, user string) error {
+
+	sql := `UPDATE urls SET is_deleted = true WHERE short_url = ANY ($1);`
+	urlsToDelete := []string{}
+	for _, url := range urls {
+		if db.isOwner(ctx, url, user) {
+			urlsToDelete = append(urlsToDelete, url)
+		}
+	}
+	_, err := db.conn.ExecContext(ctx, sql, pq.Array(urlsToDelete))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (db *PosrgreDataBase) isOwner(ctx context.Context, url string, user string) bool {
+	sqlGetURLRow := `SELECT user_id FROM urls WHERE short_url=$1 FETCH FIRST ROW ONLY;`
+	query := db.conn.QueryRowContext(ctx, sqlGetURLRow, url)
+	result := ""
+	query.Scan(&result)
+	return result == user
 }

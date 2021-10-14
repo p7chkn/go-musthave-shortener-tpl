@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -14,24 +15,26 @@ import (
 	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/configuration"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/middlewares"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/utils"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/workers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-func setupRouter(repo RepositoryInterface, baseURL string) (*gin.Engine, *configuration.Config) {
+func setupRouter(ctx context.Context, repo RepositoryInterface, baseURL string, wp *workers.WorkerPool) (*gin.Engine, *configuration.Config) {
 	router := gin.Default()
 	key, _ := configuration.GenerateRandom(16)
 	cfg := &configuration.Config{
 		Key:     key,
 		BaseURL: configuration.BaseURL,
 	}
-	handler := New(repo, cfg.BaseURL)
+	handler := New(repo, cfg.BaseURL, wp)
 	router.Use(middlewares.CookiMiddleware(cfg))
 	router.GET("/:id", handler.RetriveShortURL)
 	router.POST("/", handler.CreateShortURL)
 	router.POST("/api/shorten", handler.ShortenURL)
 	router.GET("/user/urls", handler.GetUserURL)
 	router.POST("/api/shorten/batch", handler.CreateBatch)
+	router.DELETE("/api/user/urls", handler.DeleteBatch)
 	router.HandleMethodNotAllowed = true
 	return router, cfg
 }
@@ -84,9 +87,15 @@ func TestRetriveShortURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			wp := workers.New(ctx, configuration.NumOfWorkers, configuration.WorkersBuffer)
+
+			go func() {
+				wp.Run(ctx)
+			}()
 			repoMock := new(MockRepositoryInterface)
 			repoMock.On("GetURL", mock.Anything, tt.query).Return(tt.result, tt.err)
-			router, _ := setupRouter(repoMock, configuration.BaseURL)
+			router, _ := setupRouter(ctx, repoMock, configuration.BaseURL, wp)
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest(http.MethodGet, "/"+tt.query, nil)
 			router.ServeHTTP(w, req)
@@ -142,9 +151,15 @@ func TestCreateShortURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			wp := workers.New(ctx, configuration.NumOfWorkers, configuration.WorkersBuffer)
+
+			go func() {
+				wp.Run(ctx)
+			}()
 			repoMock := new(MockRepositoryInterface)
 			repoMock.On("AddURL", mock.Anything, tt.body, tt.result, mock.Anything).Return(nil)
-			router, _ := setupRouter(repoMock, configuration.BaseURL)
+			router, _ := setupRouter(ctx, repoMock, configuration.BaseURL, wp)
 			body := strings.NewReader(tt.body)
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest(http.MethodPost, "/"+tt.query, body)
@@ -197,16 +212,22 @@ func TestShortenURL(t *testing.T) {
 			result:  "98fv58Wr3hGGIzm2-aH2zA628Ng=",
 			want: want{
 				code:        400,
-				response:    `{"detail": "Bad request"}`,
+				response:    `{"detail": "bad request"}`,
 				contentType: `application/json; charset=utf-8`,
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			wp := workers.New(ctx, configuration.NumOfWorkers, configuration.WorkersBuffer)
+
+			go func() {
+				wp.Run(ctx)
+			}()
 			repoMock := new(MockRepositoryInterface)
 			repoMock.On("AddURL", mock.Anything, tt.rawData, tt.result, mock.Anything).Return(nil)
-			router, _ := setupRouter(repoMock, configuration.BaseURL)
+			router, _ := setupRouter(ctx, repoMock, configuration.BaseURL, wp)
 			body := strings.NewReader(tt.body)
 			w := httptest.NewRecorder()
 			fmt.Println(tt.query)
@@ -258,10 +279,17 @@ func TestGetUserURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+
+			ctx := context.Background()
+			wp := workers.New(ctx, configuration.NumOfWorkers, configuration.WorkersBuffer)
+
+			go func() {
+				wp.Run(ctx)
+			}()
 			userID, _ := uuid.NewV4()
 			repoMock := new(MockRepositoryInterface)
 			repoMock.On("GetUserURL", mock.Anything, userID.String()).Return(tt.response, nil)
-			router, cfg := setupRouter(repoMock, configuration.BaseURL)
+			router, cfg := setupRouter(ctx, repoMock, configuration.BaseURL, wp)
 
 			encoder, _ := utils.New(cfg.Key)
 
@@ -370,11 +398,18 @@ func TestCreateBatch(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+
+			ctx := context.Background()
+			wp := workers.New(ctx, configuration.NumOfWorkers, configuration.WorkersBuffer)
+
+			go func() {
+				wp.Run(ctx)
+			}()
 			userID, _ := uuid.NewV4()
 			repoMock := new(MockRepositoryInterface)
 			repoMock.On("AddManyURL", mock.Anything, tt.mockData, userID.String(), mock.Anything).Return(tt.mockResponce, nil)
 
-			router, cfg := setupRouter(repoMock, configuration.BaseURL)
+			router, cfg := setupRouter(ctx, repoMock, configuration.BaseURL, wp)
 			encoder, _ := utils.New(cfg.Key)
 
 			cookie := http.Cookie{
@@ -396,6 +431,64 @@ func TestCreateBatch(t *testing.T) {
 				t.Fatal(err)
 			}
 			assert.JSONEq(t, tt.want.response, string(resBody))
+
+		})
+	}
+}
+
+func TestDeleteBatch(t *testing.T) {
+	type want struct {
+		code        int
+		contentType string
+		response    string
+	}
+	tests := []struct {
+		name  string
+		query string
+		body  string
+		want  want
+	}{
+		{
+			name:  "correct DELETE",
+			query: "api/user/urls",
+			body:  `["1", "2", "3", "4"]`,
+			want: want{
+				code:        202,
+				contentType: `application/json; charset=utf-8`,
+				response: `[{
+					"short_url": "http://localhost:8080/1yhVmSPGQlZn3EnrI2kd7Oxu5UM=",
+					"original_url": "http://hbqouwjbx5jl.ru/lkm0skvkix1ejv"
+				}]`,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			ctx := context.Background()
+			wp := workers.New(ctx, configuration.NumOfWorkers, configuration.WorkersBuffer)
+
+			go func() {
+				wp.Run(ctx)
+			}()
+			userID, _ := uuid.NewV4()
+			repoMock := new(MockRepositoryInterface)
+			repoMock.On("DeleteManyURL", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			router, cfg := setupRouter(ctx, repoMock, configuration.BaseURL, wp)
+
+			encoder, _ := utils.New(cfg.Key)
+
+			cookie := http.Cookie{
+				Name:  "userId",
+				Value: encoder.EncodeUUIDtoString(userID.Bytes()),
+			}
+			body := strings.NewReader(tt.body)
+			w := httptest.NewRecorder()
+			req, _ := http.NewRequest(http.MethodDelete, "/"+tt.query, body)
+			req.AddCookie(&cookie)
+
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.want.code, w.Code)
 
 		})
 	}
