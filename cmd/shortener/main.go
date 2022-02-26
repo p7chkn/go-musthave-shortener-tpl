@@ -7,8 +7,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
+	"time"
 
 	_ "github.com/lib/pq"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/gin-gonic/gin"
 	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/configuration"
@@ -18,6 +22,10 @@ import (
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/database"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/filebase"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/workers"
+)
+
+var (
+	httpServer *http.Server
 )
 
 func setupRouter(repo handlers.RepositoryInterface, cfg *configuration.Config, wp *workers.WorkerPool) *gin.Engine {
@@ -45,6 +53,11 @@ func setupRouter(repo handlers.RepositoryInterface, cfg *configuration.Config, w
 func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(interrupt)
 
 	cfg := configuration.New()
 
@@ -62,29 +75,53 @@ func main() {
 			log.Fatal(err)
 		}
 		defer db.Close()
-		services.SetUpDataBase(db, ctx)
+		err = services.SetUpDataBase(db, ctx)
+		if err != nil {
+			log.Fatal(err.Error())
+		}
 
 		handler = setupRouter(database.NewDatabaseRepository(cfg.BaseURL, db), cfg, wp)
 	} else {
 		handler = setupRouter(filebase.NewFileRepository(ctx, cfg.FilePath, cfg.BaseURL), cfg, wp)
 	}
 
-	server := &http.Server{
-		Addr:    cfg.ServerAdress,
-		Handler: handler,
-	}
+	g, ctx := errgroup.WithContext(ctx)
 
-	go func() {
-		log.Println(server.ListenAndServe())
-		cancel()
-	}()
+	g.Go(func() error {
+		httpServer = &http.Server{
+			Addr:    cfg.ServerAdress,
+			Handler: handler,
+		}
+		log.Printf("httpServer starting at: %v", cfg.ServerAdress)
+		if err := httpServer.ListenAndServe(); err != http.ErrServerClosed {
+			return err
+		}
+		return nil
+	})
 
-	sigint := make(chan os.Signal, 1)
-	signal.Notify(sigint, os.Interrupt)
 	select {
-	case <-sigint:
-		cancel()
+	case <-interrupt:
+		break
 	case <-ctx.Done():
+		break
 	}
-	server.Shutdown(context.Background())
+
+	log.Println("Receive shutdown signal")
+
+	cancel()
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+
+	defer shutdownCancel()
+
+	if httpServer != nil {
+		_ = httpServer.Shutdown(shutdownCtx)
+	}
+
+	err := g.Wait()
+	if err != nil {
+		log.Println("server returning an error: %v", err)
+		os.Exit(2)
+	}
+
 }
