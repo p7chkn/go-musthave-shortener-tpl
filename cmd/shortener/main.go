@@ -40,7 +40,7 @@ func setupRouter(repo handlers.RepositoryInterface, cfg *configuration.Config, w
 	router.GET("/:id", handler.RetriveShortURL)
 	router.POST("/", handler.CreateShortURL)
 	router.POST("/api/shorten", handler.ShortenURL)
-	router.GET("/user/urls", handler.GetUserURL)
+	router.GET("/api/user/urls", handler.GetUserURL)
 	router.GET("/ping", handler.PingDB)
 	router.POST("/api/shorten/batch", handler.CreateBatch)
 	router.DELETE("/api/user/urls", handler.DeleteBatch)
