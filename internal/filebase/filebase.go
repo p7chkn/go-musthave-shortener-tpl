@@ -68,7 +68,7 @@ func (repo *RepositoryMap) GetURL(ctx context.Context, shortURL string) (string,
 }
 
 func (repo *RepositoryMap) GetUserURL(ctx context.Context, user string) ([]handlers.ResponseGetURL, error) {
-	result := []handlers.ResponseGetURL{}
+	var result []handlers.ResponseGetURL
 	for _, url := range repo.usersURL[user] {
 		temp := handlers.ResponseGetURL{
 			ShortURL:    repo.baseURL + url,

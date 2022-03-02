@@ -29,7 +29,7 @@ func setupRouter(ctx context.Context, repo RepositoryInterface, baseURL string, 
 	}
 	handler := New(repo, cfg.BaseURL, wp)
 	router.Use(middlewares.CookiMiddleware(cfg))
-	router.GET("/:id", handler.RetriveShortURL)
+	router.GET("/:id", handler.RetrieveShortURL)
 	router.POST("/", handler.CreateShortURL)
 	router.POST("/api/shorten", handler.ShortenURL)
 	router.GET("/user/urls", handler.GetUserURL)
@@ -492,4 +492,68 @@ func TestDeleteBatch(t *testing.T) {
 
 		})
 	}
+}
+
+//
+//func FiboSimple(n int) int {
+//	if n <= 1 {
+//		return n
+//	}
+//	fibo := make([]int, n+1)
+//	fibo[1] = 1
+//	for i := 2; i <= n; i++ {
+//		fibo[i] = fibo[i-2] + fibo[i-1]
+//	}
+//	return fibo[n]
+//}
+//
+//func FiboRec(n int) int {
+//	if n <= 1 {
+//		return n
+//	}
+//	return FiboRec(n-2) + FiboRec(n-1)
+//}
+//
+//func BenchmarkFibonacci(b *testing.B) {
+//	count := 20
+//	b.Run("regular", func(b *testing.B) {
+//		for i := 0; i < b.N; i++ {
+//			FiboRec(count)
+//		}
+//	})
+//	b.Run("sequence", func(b *testing.B) {
+//		for i := 0; i < b.N; i++ {
+//			FiboSimple(count)
+//		}
+//	})
+//}
+
+func BenchmarkHandler_GetUserURL(b *testing.B) {
+	b.Run("Get", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			ctx := context.Background()
+			wp := workers.New(ctx, configuration.NumOfWorkers, configuration.WorkersBuffer)
+
+			go func() {
+				wp.Run(ctx)
+			}()
+			userID, _ := uuid.NewV4()
+			repoMock := new(MockRepositoryInterface)
+			repoMock.On("DeleteManyURL", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			router, cfg := setupRouter(ctx, repoMock, configuration.BaseURL, wp)
+
+			encoder, _ := utils.New(cfg.Key)
+
+			cookie := http.Cookie{
+				Name:  "userId",
+				Value: encoder.EncodeUUIDtoString(userID.Bytes()),
+			}
+			body := strings.NewReader(`["1", "2", "3", "4"]`)
+			w := httptest.NewRecorder()
+			req, _ := http.NewRequest(http.MethodDelete, "/api/user/urls", body)
+			req.AddCookie(&cookie)
+
+			router.ServeHTTP(w, req)
+		}
+	})
 }

@@ -77,13 +77,13 @@ func New(repo RepositoryInterface, basURL string, wp *workers.WorkerPool) *Handl
 	}
 }
 
-func (h *Handler) RetriveShortURL(c *gin.Context) {
+func (h *Handler) RetrieveShortURL(c *gin.Context) {
 	result := map[string]string{}
 	long, err := h.repo.GetURL(c.Request.Context(), c.Param("id"))
 
 	if err != nil {
 		var ue *ErrorWithDB
-		if errors.As(err, &ue) && ue.Title == "Deleted" {
+		if errors.As(err, &ue) && ue.Title == "deleted" {
 			c.Status(http.StatusGone)
 			return
 		}
@@ -133,7 +133,11 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 		h.handleError(c, err)
 		return
 	}
-	json.Unmarshal(body, &url)
+	err = json.Unmarshal(body, &url)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
 	if url.URL == "" {
 		h.handleError(c, errors.New("bad request"))
 		return
@@ -185,8 +189,11 @@ func (h *Handler) CreateBatch(c *gin.Context) {
 		h.handleError(c, err)
 		return
 	}
-	json.Unmarshal(body, &data)
-	fmt.Println(data)
+	err = json.Unmarshal(body, &data)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
 	response, err := h.repo.AddManyURL(c.Request.Context(), data, c.GetString("userId"))
 	if err != nil {
 		h.handleError(c, err)
@@ -208,12 +215,12 @@ func (h *Handler) DeleteBatch(c *gin.Context) {
 		return
 	}
 	var data []string
-	err = json.Unmarshal([]byte(body), &data)
+	err = json.Unmarshal(body, &data)
 	if err != nil {
 		h.handleError(c, err)
 		return
 	}
-	sliceData := [][]string{}
+	var sliceData [][]string
 	for i := 10; i <= len(data); i += 10 {
 		sliceData = append(sliceData, data[i-10:i])
 	}
@@ -246,6 +253,6 @@ func (h *Handler) setBodyToData(c *gin.Context, obj interface{}) error {
 	if err != nil {
 		return err
 	}
-	json.Unmarshal(body, &obj)
-	return nil
+	err = json.Unmarshal(body, &obj)
+	return err
 }

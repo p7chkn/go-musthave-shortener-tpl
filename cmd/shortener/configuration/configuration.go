@@ -16,8 +16,8 @@ const (
 	FilePerm     = 0755
 	ServerAdress = "localhost:8080"
 	BaseURL      = "http://localhost:8080/"
-	DataBaseURI  = ""
 	// DataBaseURI  = "postgresql://postgres:1234@localhost:5432?sslmode=disable"
+	DataBaseURI   = ""
 	NumOfWorkers  = 10
 	WorkersBuffer = 100
 )

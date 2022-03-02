@@ -71,14 +71,14 @@ func (db *PosrgreDataBase) GetURL(ctx context.Context, shortURL string) (string,
 		return "", handlers.NewErrorWithDB(errors.New("not found"), "Not found")
 	}
 	if result.IsDeleted {
-		return "", handlers.NewErrorWithDB(errors.New("Deleted"), "Deleted")
+		return "", handlers.NewErrorWithDB(errors.New("deleted"), "deleted")
 	}
 	return result.OriginURL, nil
 }
 
 func (db *PosrgreDataBase) GetUserURL(ctx context.Context, user string) ([]handlers.ResponseGetURL, error) {
 
-	result := []handlers.ResponseGetURL{}
+	var result []handlers.ResponseGetURL
 
 	sqlGetUserURL := `SELECT origin_url, short_url FROM urls WHERE user_id=$1 AND is_deleted=false;`
 	rows, err := db.conn.QueryContext(ctx, sqlGetUserURL, user)
@@ -105,7 +105,7 @@ func (db *PosrgreDataBase) GetUserURL(ctx context.Context, user string) ([]handl
 
 func (db *PosrgreDataBase) AddManyURL(ctx context.Context, urls []handlers.ManyPostURL, user string) ([]handlers.ManyPostResponse, error) {
 
-	result := []handlers.ManyPostResponse{}
+	var result []handlers.ManyPostResponse
 	tx, err := db.conn.Begin()
 
 	if err != nil {
@@ -143,7 +143,7 @@ func (db *PosrgreDataBase) AddManyURL(ctx context.Context, urls []handlers.ManyP
 func (db *PosrgreDataBase) DeleteManyURL(ctx context.Context, urls []string, user string) error {
 
 	sql := `UPDATE urls SET is_deleted = true WHERE short_url = ANY ($1);`
-	urlsToDelete := []string{}
+	var urlsToDelete []string
 	for _, url := range urls {
 		if db.isOwner(ctx, url, user) {
 			urlsToDelete = append(urlsToDelete, url)

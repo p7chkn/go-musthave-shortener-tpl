@@ -11,6 +11,7 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
+	_ "net/http/pprof"
 
 	"golang.org/x/sync/errgroup"
 
@@ -37,7 +38,7 @@ func setupRouter(repo handlers.RepositoryInterface, cfg *configuration.Config, w
 	router.Use(middlewares.GzipDecodeMiddleware())
 	router.Use(middlewares.CookiMiddleware(cfg))
 
-	router.GET("/:id", handler.RetriveShortURL)
+	router.GET("/:id", handler.RetrieveShortURL)
 	router.POST("/", handler.CreateShortURL)
 	router.POST("/api/shorten", handler.ShortenURL)
 	router.GET("/api/user/urls", handler.GetUserURL)

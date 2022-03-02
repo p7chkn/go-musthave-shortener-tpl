@@ -15,5 +15,5 @@ func ShorterURL(longURL string) string {
 		hasher.Write([]byte(splitURL[1]))
 	}
 	urlHash := base64.URLEncoding.EncodeToString(hasher.Sum(nil))
-	return string(urlHash)
+	return urlHash
 }
