@@ -10,8 +10,9 @@ import (
 	"syscall"
 	"time"
 
-	_ "github.com/lib/pq"
 	_ "net/http/pprof"
+
+	_ "github.com/lib/pq"
 
 	"golang.org/x/sync/errgroup"
 
