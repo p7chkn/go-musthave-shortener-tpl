@@ -22,26 +22,29 @@ const (
 	WorkersBuffer = 100
 )
 
+// Config - структура для кофигурации сервиса.
 type Config struct {
-	ServerAdress   string `env:"SERVER_ADDRESS"`
-	BaseURL        string `env:"BASE_URL"`
-	FilePath       string `env:"FILE_STORAGE_PATH"`
-	NumOfWorkers   int    `env:"NUMBER_OF_WORKERS"`
-	DataBase       ConfigDatabase
-	Key            []byte
-	WorekersBuffer int `env:"WORKERS_BUFFER"`
+	ServerAddress string `env:"SERVER_ADDRESS"`
+	BaseURL       string `env:"BASE_URL"`
+	FilePath      string `env:"FILE_STORAGE_PATH"`
+	NumOfWorkers  int    `env:"NUMBER_OF_WORKERS"`
+	DataBase      ConfigDatabase
+	Key           []byte
+	WorkersBuffer int `env:"WORKERS_BUFFER"`
 }
 
 type ConfigDatabase struct {
 	DataBaseURI string `env:"DATABASE_DSN"`
 }
 
+// New - создание новой конфигурации для сервиса, парсинг env и флагов в
+// струтуру Config.
 func New() *Config {
 	dbCfg := ConfigDatabase{
 		DataBaseURI: DataBaseURI,
 	}
 
-	flagServerAdress := flag.String("a", ServerAdress, "server adress")
+	flagServerAddress := flag.String("a", ServerAdress, "server adress")
 	flagBaseURL := flag.String("b", BaseURL, "base url")
 	flagFilePath := flag.String("f", FileName, "file path")
 	flagDataBaseURI := flag.String("d", DataBaseURI, "URI for database")
@@ -54,15 +57,15 @@ func New() *Config {
 	}
 
 	cfg := Config{
-		ServerAdress:   ServerAdress,
-		FilePath:       FileName,
-		BaseURL:        BaseURL,
-		DataBase:       dbCfg,
-		Key:            make([]byte, 16),
-		NumOfWorkers:   NumOfWorkers,
-		WorekersBuffer: WorkersBuffer,
+		ServerAddress: ServerAdress,
+		FilePath:      FileName,
+		BaseURL:       BaseURL,
+		DataBase:      dbCfg,
+		Key:           make([]byte, 16),
+		NumOfWorkers:  NumOfWorkers,
+		WorkersBuffer: WorkersBuffer,
 	}
-	cfg.BaseURL = fmt.Sprintf("http://%s/", cfg.ServerAdress)
+	cfg.BaseURL = fmt.Sprintf("http://%s/", cfg.ServerAddress)
 
 	err := env.Parse(&cfg)
 
@@ -70,8 +73,8 @@ func New() *Config {
 		log.Fatal(err)
 	}
 
-	if *flagServerAdress != ServerAdress {
-		cfg.ServerAdress = *flagServerAdress
+	if *flagServerAddress != ServerAdress {
+		cfg.ServerAddress = *flagServerAddress
 	}
 	if *flagBaseURL != BaseURL {
 		cfg.BaseURL = *flagBaseURL
@@ -84,7 +87,7 @@ func New() *Config {
 	}
 
 	if *flagBubfferOfWorkers != WorkersBuffer {
-		cfg.WorekersBuffer = *flagBubfferOfWorkers
+		cfg.WorkersBuffer = *flagBubfferOfWorkers
 	}
 
 	if cfg.FilePath != FileName {
@@ -114,6 +117,7 @@ func New() *Config {
 	return &cfg
 }
 
+// GenerateRandom - генерация случайной последоватльности байтов.
 func GenerateRandom(size int) ([]byte, error) {
 	b := make([]byte, size)
 	_, err := rand.Read(b)

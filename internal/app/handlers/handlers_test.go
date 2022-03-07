@@ -494,40 +494,6 @@ func TestDeleteBatch(t *testing.T) {
 	}
 }
 
-//
-//func FiboSimple(n int) int {
-//	if n <= 1 {
-//		return n
-//	}
-//	fibo := make([]int, n+1)
-//	fibo[1] = 1
-//	for i := 2; i <= n; i++ {
-//		fibo[i] = fibo[i-2] + fibo[i-1]
-//	}
-//	return fibo[n]
-//}
-//
-//func FiboRec(n int) int {
-//	if n <= 1 {
-//		return n
-//	}
-//	return FiboRec(n-2) + FiboRec(n-1)
-//}
-//
-//func BenchmarkFibonacci(b *testing.B) {
-//	count := 20
-//	b.Run("regular", func(b *testing.B) {
-//		for i := 0; i < b.N; i++ {
-//			FiboRec(count)
-//		}
-//	})
-//	b.Run("sequence", func(b *testing.B) {
-//		for i := 0; i < b.N; i++ {
-//			FiboSimple(count)
-//		}
-//	})
-//}
-
 func BenchmarkHandler_GetUserURL(b *testing.B) {
 	b.Run("Get", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -556,4 +522,22 @@ func BenchmarkHandler_GetUserURL(b *testing.B) {
 			router.ServeHTTP(w, req)
 		}
 	})
+}
+
+func ExampleHandler_CreateBatch() {
+	router := gin.Default()
+	repo := new(MockRepositoryInterface)
+	wp := &workers.WorkerPool{}
+	cfg := &configuration.Config{}
+	handler := New(repo, cfg.BaseURL, wp)
+	router.POST("/api/shorten/batch", handler.CreateBatch)
+}
+
+func ExampleHandler_CreateShortURL() {
+	router := gin.Default()
+	repo := new(MockRepositoryInterface)
+	wp := &workers.WorkerPool{}
+	cfg := &configuration.Config{}
+	handler := New(repo, cfg.BaseURL, wp)
+	router.POST("/api/shorten", handler.CreateShortURL)
 }

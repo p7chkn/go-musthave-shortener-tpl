@@ -19,8 +19,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/configuration"
 	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/services"
-	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/handlers"
-	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/middlewares"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/database"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/filebase"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/workers"
@@ -29,28 +27,6 @@ import (
 var (
 	httpServer *http.Server
 )
-
-func setupRouter(repo handlers.RepositoryInterface, cfg *configuration.Config, wp *workers.WorkerPool) *gin.Engine {
-	router := gin.Default()
-
-	handler := handlers.New(repo, cfg.BaseURL, wp)
-
-	router.Use(middlewares.GzipEncodeMiddleware())
-	router.Use(middlewares.GzipDecodeMiddleware())
-	router.Use(middlewares.CookiMiddleware(cfg))
-
-	router.GET("/:id", handler.RetrieveShortURL)
-	router.POST("/", handler.CreateShortURL)
-	router.POST("/api/shorten", handler.ShortenURL)
-	router.GET("/api/user/urls", handler.GetUserURL)
-	router.GET("/ping", handler.PingDB)
-	router.POST("/api/shorten/batch", handler.CreateBatch)
-	router.DELETE("/api/user/urls", handler.DeleteBatch)
-
-	router.HandleMethodNotAllowed = true
-
-	return router
-}
 
 func main() {
 
@@ -65,7 +41,7 @@ func main() {
 
 	var handler *gin.Engine
 
-	wp := workers.New(ctx, cfg.NumOfWorkers, cfg.WorekersBuffer)
+	wp := workers.New(ctx, cfg.NumOfWorkers, cfg.WorkersBuffer)
 
 	go func() {
 		wp.Run(ctx)
@@ -82,19 +58,19 @@ func main() {
 			log.Fatal(err.Error())
 		}
 
-		handler = setupRouter(database.NewDatabaseRepository(cfg.BaseURL, db), cfg, wp)
+		handler = services.SetupRouter(database.NewDatabaseRepository(cfg.BaseURL, db), cfg, wp)
 	} else {
-		handler = setupRouter(filebase.NewFileRepository(ctx, cfg.FilePath, cfg.BaseURL), cfg, wp)
+		handler = services.SetupRouter(filebase.NewFileRepository(ctx, cfg.FilePath, cfg.BaseURL), cfg, wp)
 	}
 
 	g, ctx := errgroup.WithContext(ctx)
 
 	g.Go(func() error {
 		httpServer = &http.Server{
-			Addr:    cfg.ServerAdress,
+			Addr:    cfg.ServerAddress,
 			Handler: handler,
 		}
-		log.Printf("httpServer starting at: %v", cfg.ServerAdress)
+		log.Printf("httpServer starting at: %v", cfg.ServerAddress)
 		if err := httpServer.ListenAndServe(); err != http.ErrServerClosed {
 			return err
 		}

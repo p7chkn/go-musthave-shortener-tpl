@@ -1,3 +1,4 @@
+// Package utils - пакет вспомогательных инструментов.
 package utils
 
 import (
@@ -8,11 +9,13 @@ import (
 	"github.com/gofrs/uuid"
 )
 
+// Encryptor - стрктура для шифрования/расшифрование.
 type Encryptor struct {
 	aesblock cipher.Block
 	key      []byte
 }
 
+// New - создание новой структуры Encryptor.
 func New(key []byte) (*Encryptor, error) {
 	enc := Encryptor{
 		key: key,
@@ -25,6 +28,7 @@ func New(key []byte) (*Encryptor, error) {
 	return &enc, nil
 }
 
+// EncodeUUIDtoString - зашифровка UUID в строку.
 func (en *Encryptor) EncodeUUIDtoString(value []byte) string {
 
 	encrypted := make([]byte, aes.BlockSize)
@@ -33,7 +37,8 @@ func (en *Encryptor) EncodeUUIDtoString(value []byte) string {
 	return hex.EncodeToString(encrypted)
 }
 
-func (en *Encryptor) DecodeUUIDfromString(value string) (string, error) {
+// DecodeUUIDFromString - расшифровка строки в UUID.
+func (en *Encryptor) DecodeUUIDFromString(value string) (string, error) {
 	encrypted, err := hex.DecodeString(value)
 	if err != nil {
 		return "", err

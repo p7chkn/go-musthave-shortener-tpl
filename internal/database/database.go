@@ -1,3 +1,4 @@
+// Package database - пакет для взаимодействия с базой данных Postgres.
 package database
 
 import (
@@ -13,29 +14,34 @@ import (
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/shortener"
 )
 
-type GetURLdata struct {
+// GetURLData - структура для возвращения данных о URL.
+type GetURLData struct {
 	OriginURL string
 	IsDeleted bool
 }
 
-type PosrgreDataBase struct {
+// PostgresDataBase - структура для взаимодейтсивя с базой данных.
+type PostgresDataBase struct {
 	conn    *sql.DB
 	baseURL string
 }
 
+// NewDatabaseRepository - создание нового интерфейства для репозитория.
 func NewDatabaseRepository(baseURL string, db *sql.DB) handlers.RepositoryInterface {
 	return handlers.RepositoryInterface(NewDatabase(baseURL, db))
 }
 
-func NewDatabase(baseURL string, db *sql.DB) *PosrgreDataBase {
-	result := &PosrgreDataBase{
+// NewDatabase - создание новой структуры взаимодействия с базой данных.
+func NewDatabase(baseURL string, db *sql.DB) *PostgresDataBase {
+	result := &PostgresDataBase{
 		conn:    db,
 		baseURL: baseURL,
 	}
 	return result
 }
 
-func (db *PosrgreDataBase) Ping(ctx context.Context) error {
+// Ping - проверка подключения к базе данных.
+func (db *PostgresDataBase) Ping(ctx context.Context) error {
 
 	err := db.conn.PingContext(ctx)
 	if err != nil {
@@ -45,7 +51,8 @@ func (db *PosrgreDataBase) Ping(ctx context.Context) error {
 	return nil
 }
 
-func (db *PosrgreDataBase) AddURL(ctx context.Context, longURL string, shortURL string, user string) error {
+// AddURL - добавление записи о новой сокращенной URL.
+func (db *PostgresDataBase) AddURL(ctx context.Context, longURL string, shortURL string, user string) error {
 
 	sqlAddRow := `INSERT INTO urls (user_id, origin_url, short_url)
 				  VALUES ($1, $2, $3)`
@@ -61,11 +68,12 @@ func (db *PosrgreDataBase) AddURL(ctx context.Context, longURL string, shortURL 
 	return err
 }
 
-func (db *PosrgreDataBase) GetURL(ctx context.Context, shortURL string) (string, error) {
+// GetURL - получение данных о изначальном URL по сокращенному URL.
+func (db *PostgresDataBase) GetURL(ctx context.Context, shortURL string) (string, error) {
 
 	sqlGetURLRow := `SELECT origin_url, is_deleted FROM urls WHERE short_url=$1 FETCH FIRST ROW ONLY;`
 	query := db.conn.QueryRowContext(ctx, sqlGetURLRow, shortURL)
-	result := GetURLdata{}
+	result := GetURLData{}
 	query.Scan(&result.OriginURL, &result.IsDeleted)
 	if result.OriginURL == "" {
 		return "", handlers.NewErrorWithDB(errors.New("not found"), "Not found")
@@ -76,7 +84,8 @@ func (db *PosrgreDataBase) GetURL(ctx context.Context, shortURL string) (string,
 	return result.OriginURL, nil
 }
 
-func (db *PosrgreDataBase) GetUserURL(ctx context.Context, user string) ([]handlers.ResponseGetURL, error) {
+// GetUserURL - получение всех URL пользователя.
+func (db *PostgresDataBase) GetUserURL(ctx context.Context, user string) ([]handlers.ResponseGetURL, error) {
 
 	var result []handlers.ResponseGetURL
 
@@ -103,7 +112,8 @@ func (db *PosrgreDataBase) GetUserURL(ctx context.Context, user string) ([]handl
 	return result, nil
 }
 
-func (db *PosrgreDataBase) AddManyURL(ctx context.Context, urls []handlers.ManyPostURL, user string) ([]handlers.ManyPostResponse, error) {
+// AddManyURL - добавление многих URL сразу.
+func (db *PostgresDataBase) AddManyURL(ctx context.Context, urls []handlers.ManyPostURL, user string) ([]handlers.ManyPostResponse, error) {
 
 	var result []handlers.ManyPostResponse
 	tx, err := db.conn.Begin()
@@ -140,7 +150,8 @@ func (db *PosrgreDataBase) AddManyURL(ctx context.Context, urls []handlers.ManyP
 	return result, nil
 }
 
-func (db *PosrgreDataBase) DeleteManyURL(ctx context.Context, urls []string, user string) error {
+// DeleteManyURL - удаление многиз URL по id.
+func (db *PostgresDataBase) DeleteManyURL(ctx context.Context, urls []string, user string) error {
 
 	sql := `UPDATE urls SET is_deleted = true WHERE short_url = ANY ($1);`
 	var urlsToDelete []string
@@ -156,7 +167,9 @@ func (db *PosrgreDataBase) DeleteManyURL(ctx context.Context, urls []string, use
 	return nil
 }
 
-func (db *PosrgreDataBase) isOwner(ctx context.Context, url string, user string) bool {
+// isOwner - вспомогательная функция, которая определняет владелец ли переданный
+// пользователь, указанной записи сокращенного URL.
+func (db *PostgresDataBase) isOwner(ctx context.Context, url string, user string) bool {
 	sqlGetURLRow := `SELECT user_id FROM urls WHERE short_url=$1 FETCH FIRST ROW ONLY;`
 	query := db.conn.QueryRowContext(ctx, sqlGetURLRow, url)
 	result := ""

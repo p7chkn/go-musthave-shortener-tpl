@@ -1,3 +1,5 @@
+// Package services - предназначен для настройки и установления необходимых
+// для приложения сервисов.
 package services
 
 import (
@@ -6,6 +8,8 @@ import (
 	"log"
 )
 
+// SetUpDataBase - подготоваливает базу данных для использования, накатывает
+// миграции и устанавливает необходимые расширения.
 func SetUpDataBase(db *sql.DB, ctx context.Context) error {
 
 	var extention string
