@@ -1,3 +1,4 @@
+// Package shortener - пакет для сокращения URL.
 package shortener
 
 import (
@@ -6,6 +7,7 @@ import (
 	"strings"
 )
 
+// ShorterURL - сокращение URL.
 func ShorterURL(longURL string) string {
 	splitURL := strings.Split(longURL, "://")
 	hasher := sha1.New()
