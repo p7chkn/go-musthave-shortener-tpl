@@ -99,7 +99,6 @@ func main() {
 	err := g.Wait()
 	if err != nil {
 		log.Printf("server returning an error: %v", err)
-		os.Exit(2)
 	}
 
 }

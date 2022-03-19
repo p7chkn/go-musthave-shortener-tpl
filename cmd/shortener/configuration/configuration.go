@@ -91,9 +91,9 @@ func New() *Config {
 	}
 
 	if cfg.FilePath != FileName {
-		if _, err := os.Stat(filepath.Dir(cfg.FilePath)); os.IsNotExist(err) {
+		if _, err = os.Stat(filepath.Dir(cfg.FilePath)); os.IsNotExist(err) {
 			log.Println("Creating folder")
-			err := os.Mkdir(filepath.Dir(cfg.FilePath), FilePerm)
+			err = os.Mkdir(filepath.Dir(cfg.FilePath), FilePerm)
 			if err != nil {
 				log.Printf("Error: %v \n", err)
 			}
@@ -108,7 +108,7 @@ func New() *Config {
 
 	if err != nil {
 		cfg.Key, _ = GenerateRandom(16)
-		file, _ := os.Create("key")
+		file, _ = os.Create("key")
 		file.Write(cfg.Key)
 	} else {
 		file.Read(cfg.Key)
