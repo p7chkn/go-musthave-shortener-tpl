@@ -66,8 +66,8 @@ func CookiMiddleware(cfg *configuration.Config) gin.HandlerFunc {
 			return
 		}
 		if cookie != nil {
-			value, err := encryptor.DecodeUUIDFromString(cookie.Value)
-			if err == nil {
+			value, e := encryptor.DecodeUUIDFromString(cookie.Value)
+			if e == nil {
 				c.Set("userId", value)
 				return
 			}
