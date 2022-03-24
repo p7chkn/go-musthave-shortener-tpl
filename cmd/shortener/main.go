@@ -25,11 +25,17 @@ import (
 )
 
 var (
-	httpServer *http.Server
+	httpServer   *http.Server
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
 )
 
 func main() {
 
+	log.Printf("Build version: %v\n", buildVersion)
+	log.Printf("Build date: %v\n", buildDate)
+	log.Printf("Build commit: %v\n", buildCommit)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
