@@ -16,6 +16,7 @@ const (
 	FilePerm     = 0755
 	ServerAdress = "localhost:8080"
 	BaseURL      = "http://localhost:8080/"
+	EnableHttps  = false
 	// DataBaseURI  = "postgresql://postgres:1234@localhost:5432?sslmode=disable"
 	DataBaseURI   = ""
 	NumOfWorkers  = 10
@@ -28,6 +29,7 @@ type Config struct {
 	BaseURL       string `env:"BASE_URL"`
 	FilePath      string `env:"FILE_STORAGE_PATH"`
 	NumOfWorkers  int    `env:"NUMBER_OF_WORKERS"`
+	EnableHttps   bool   `env:"ENABLE_HTTPS"`
 	DataBase      ConfigDatabase
 	Key           []byte
 	WorkersBuffer int `env:"WORKERS_BUFFER"`
@@ -49,7 +51,8 @@ func New() *Config {
 	flagFilePath := flag.String("f", FileName, "file path")
 	flagDataBaseURI := flag.String("d", DataBaseURI, "URI for database")
 	flagNumOfWorkers := flag.Int("w", NumOfWorkers, "Number of workers")
-	flagBubfferOfWorkers := flag.Int("wb", WorkersBuffer, "Workers channel buffer")
+	flagBufferOfWorkers := flag.Int("wb", WorkersBuffer, "Workers channel buffer")
+	flagEnableHttps := flag.Bool("s", EnableHttps, "Enable https")
 	flag.Parse()
 
 	if *flagDataBaseURI != DataBaseURI {
@@ -64,6 +67,7 @@ func New() *Config {
 		Key:           make([]byte, 16),
 		NumOfWorkers:  NumOfWorkers,
 		WorkersBuffer: WorkersBuffer,
+		EnableHttps:   EnableHttps,
 	}
 	cfg.BaseURL = fmt.Sprintf("http://%s/", cfg.ServerAddress)
 
@@ -86,8 +90,12 @@ func New() *Config {
 		cfg.NumOfWorkers = *flagNumOfWorkers
 	}
 
-	if *flagBubfferOfWorkers != WorkersBuffer {
-		cfg.WorkersBuffer = *flagBubfferOfWorkers
+	if *flagBufferOfWorkers != WorkersBuffer {
+		cfg.WorkersBuffer = *flagBufferOfWorkers
+	}
+
+	if *flagEnableHttps != EnableHttps {
+		cfg.EnableHttps = *flagEnableHttps
 	}
 
 	if cfg.FilePath != FileName {

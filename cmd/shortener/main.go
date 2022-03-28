@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"log"
 	"net/http"
@@ -71,14 +72,34 @@ func main() {
 
 	g, ctx := errgroup.WithContext(ctx)
 
+	tlsS := &tls.Config{
+		MinVersion:       tls.VersionTLS12,
+		CurvePreferences: []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
+		CipherSuites: []uint16{
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+			tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+		},
+	}
 	g.Go(func() error {
 		httpServer = &http.Server{
-			Addr:    cfg.ServerAddress,
-			Handler: handler,
+			Addr:      cfg.ServerAddress,
+			Handler:   handler,
+			TLSConfig: tlsS,
 		}
 		log.Printf("httpServer starting at: %v", cfg.ServerAddress)
-		if err := httpServer.ListenAndServe(); err != http.ErrServerClosed {
-			return err
+		if !cfg.EnableHttps {
+			if err := httpServer.ListenAndServeTLS(
+				"localhost.crt",
+				"localhost.key"); err != http.ErrServerClosed {
+				return err
+			}
+		} else {
+			if err := httpServer.ListenAndServe(); err != http.ErrServerClosed {
+				return err
+			}
 		}
 		return nil
 	})
