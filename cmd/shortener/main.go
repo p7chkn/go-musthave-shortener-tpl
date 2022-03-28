@@ -90,7 +90,7 @@ func main() {
 			TLSConfig: tlsS,
 		}
 		log.Printf("httpServer starting at: %v", cfg.ServerAddress)
-		if !cfg.EnableHttps {
+		if cfg.EnableHTTPS {
 			if err := httpServer.ListenAndServeTLS(
 				"localhost.crt",
 				"localhost.key"); err != http.ErrServerClosed {

@@ -29,7 +29,7 @@ type Config struct {
 	BaseURL       string `env:"BASE_URL"`
 	FilePath      string `env:"FILE_STORAGE_PATH"`
 	NumOfWorkers  int    `env:"NUMBER_OF_WORKERS"`
-	EnableHttps   bool   `env:"ENABLE_HTTPS"`
+	EnableHTTPS   bool   `env:"ENABLE_HTTPS"`
 	DataBase      ConfigDatabase
 	Key           []byte
 	WorkersBuffer int `env:"WORKERS_BUFFER"`
@@ -52,7 +52,7 @@ func New() *Config {
 	flagDataBaseURI := flag.String("d", DataBaseURI, "URI for database")
 	flagNumOfWorkers := flag.Int("w", NumOfWorkers, "Number of workers")
 	flagBufferOfWorkers := flag.Int("wb", WorkersBuffer, "Workers channel buffer")
-	flagEnableHttps := flag.Bool("s", EnableHttps, "Enable https")
+	flagEnableHTTPS := flag.Bool("s", EnableHttps, "Enable https")
 	flag.Parse()
 
 	if *flagDataBaseURI != DataBaseURI {
@@ -67,7 +67,7 @@ func New() *Config {
 		Key:           make([]byte, 16),
 		NumOfWorkers:  NumOfWorkers,
 		WorkersBuffer: WorkersBuffer,
-		EnableHttps:   EnableHttps,
+		EnableHTTPS:   EnableHttps,
 	}
 	cfg.BaseURL = fmt.Sprintf("http://%s/", cfg.ServerAddress)
 
@@ -94,8 +94,8 @@ func New() *Config {
 		cfg.WorkersBuffer = *flagBufferOfWorkers
 	}
 
-	if *flagEnableHttps != EnableHttps {
-		cfg.EnableHttps = *flagEnableHttps
+	if *flagEnableHTTPS {
+		cfg.EnableHTTPS = *flagEnableHTTPS
 	}
 
 	if cfg.FilePath != FileName {
