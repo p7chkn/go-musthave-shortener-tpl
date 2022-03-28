@@ -16,7 +16,7 @@ const (
 	FilePerm     = 0755
 	ServerAdress = "localhost:8080"
 	BaseURL      = "http://localhost:8080/"
-	EnableHttps  = false
+	EnableHTTPS  = false
 	// DataBaseURI  = "postgresql://postgres:1234@localhost:5432?sslmode=disable"
 	DataBaseURI   = ""
 	NumOfWorkers  = 10
@@ -52,7 +52,7 @@ func New() *Config {
 	flagDataBaseURI := flag.String("d", DataBaseURI, "URI for database")
 	flagNumOfWorkers := flag.Int("w", NumOfWorkers, "Number of workers")
 	flagBufferOfWorkers := flag.Int("wb", WorkersBuffer, "Workers channel buffer")
-	flagEnableHTTPS := flag.Bool("s", EnableHttps, "Enable https")
+	flagEnableHTTPS := flag.Bool("s", EnableHTTPS, "Enable https")
 	flag.Parse()
 
 	if *flagDataBaseURI != DataBaseURI {
@@ -67,7 +67,7 @@ func New() *Config {
 		Key:           make([]byte, 16),
 		NumOfWorkers:  NumOfWorkers,
 		WorkersBuffer: WorkersBuffer,
-		EnableHTTPS:   EnableHttps,
+		EnableHTTPS:   EnableHTTPS,
 	}
 	cfg.BaseURL = fmt.Sprintf("http://%s/", cfg.ServerAddress)
 
