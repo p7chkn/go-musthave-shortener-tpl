@@ -54,7 +54,9 @@ func New() *Config {
 	flag.Parse()
 
 	dbCfg := ConfigDatabase{}
-	cfg := Config{}
+	cfg := Config{
+		DataBase: dbCfg,
+	}
 
 	if *flagConfigFile != "" {
 		cfg = getConfigFromFIle(*flagConfigFile)
