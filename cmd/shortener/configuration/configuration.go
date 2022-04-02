@@ -53,19 +53,15 @@ func New() *Config {
 	flagConfigFile := flag.String("c", "", "configuration file")
 	flag.Parse()
 
-	dbCfg := ConfigDatabase{}
-	cfg := Config{
-		DataBase: dbCfg,
-	}
+	cfg := Config{}
 
 	if *flagConfigFile != "" {
 		cfg = getConfigFromFIle(*flagConfigFile)
 	} else {
-		dbCfg.DataBaseURI = DataBaseURI
 		cfg.ServerAddress = ServerAdress
 		cfg.FilePath = FileName
 		cfg.BaseURL = BaseURL
-		cfg.DataBase = dbCfg
+		cfg.DataBase.DataBaseURI = DataBaseURI
 		cfg.Key = make([]byte, 16)
 		cfg.NumOfWorkers = NumOfWorkers
 		cfg.WorkersBuffer = WorkersBuffer
@@ -81,7 +77,7 @@ func New() *Config {
 	}
 
 	if *flagDataBaseURI != DataBaseURI {
-		dbCfg.DataBaseURI = *flagDataBaseURI
+		cfg.DataBase.DataBaseURI = *flagDataBaseURI
 	}
 
 	if *flagServerAddress != ServerAdress {
