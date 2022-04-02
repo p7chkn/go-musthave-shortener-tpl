@@ -42,9 +42,6 @@ type ConfigDatabase struct {
 // New - создание новой конфигурации для сервиса, парсинг env и флагов в
 // струтуру Config.
 func New() *Config {
-	dbCfg := ConfigDatabase{
-		DataBaseURI: DataBaseURI,
-	}
 
 	flagServerAddress := flag.String("a", ServerAdress, "server adress")
 	flagBaseURL := flag.String("b", BaseURL, "base url")
@@ -53,28 +50,36 @@ func New() *Config {
 	flagNumOfWorkers := flag.Int("w", NumOfWorkers, "Number of workers")
 	flagBufferOfWorkers := flag.Int("wb", WorkersBuffer, "Workers channel buffer")
 	flagEnableHTTPS := flag.Bool("s", EnableHTTPS, "Enable https")
+	flagConfigFile := flag.String("c", "", "configuration file")
 	flag.Parse()
 
-	if *flagDataBaseURI != DataBaseURI {
-		dbCfg.DataBaseURI = *flagDataBaseURI
+	dbCfg := ConfigDatabase{}
+	cfg := Config{}
+
+	if *flagConfigFile != "" {
+		cfg = getConfigFromFIle(*flagConfigFile)
+	} else {
+		dbCfg.DataBaseURI = DataBaseURI
+		cfg.ServerAddress = ServerAdress
+		cfg.FilePath = FileName
+		cfg.BaseURL = BaseURL
+		cfg.DataBase = dbCfg
+		cfg.Key = make([]byte, 16)
+		cfg.NumOfWorkers = NumOfWorkers
+		cfg.WorkersBuffer = WorkersBuffer
+		cfg.EnableHTTPS = EnableHTTPS
 	}
 
-	cfg := Config{
-		ServerAddress: ServerAdress,
-		FilePath:      FileName,
-		BaseURL:       BaseURL,
-		DataBase:      dbCfg,
-		Key:           make([]byte, 16),
-		NumOfWorkers:  NumOfWorkers,
-		WorkersBuffer: WorkersBuffer,
-		EnableHTTPS:   EnableHTTPS,
-	}
 	cfg.BaseURL = fmt.Sprintf("http://%s/", cfg.ServerAddress)
 
 	err := env.Parse(&cfg)
 
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	if *flagDataBaseURI != DataBaseURI {
+		dbCfg.DataBaseURI = *flagDataBaseURI
 	}
 
 	if *flagServerAddress != ServerAdress {
