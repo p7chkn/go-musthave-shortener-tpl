@@ -17,10 +17,11 @@ const (
 	ServerAdress = "localhost:8080"
 	BaseURL      = "http://localhost:8080/"
 	EnableHTTPS  = false
-	// DataBaseURI  = "postgresql://postgres:1234@localhost:5432?sslmode=disable"
+	//DataBaseURI  = "postgresql://pavelchuykin:1234@localhost:5432?sslmode=disable"
 	DataBaseURI   = ""
 	NumOfWorkers  = 10
 	WorkersBuffer = 100
+	TrustedSubnet = "127.0.0.1/24"
 )
 
 // Config - структура для кофигурации сервиса.
@@ -32,7 +33,8 @@ type Config struct {
 	EnableHTTPS   bool   `env:"ENABLE_HTTPS"`
 	DataBase      ConfigDatabase
 	Key           []byte
-	WorkersBuffer int `env:"WORKERS_BUFFER"`
+	WorkersBuffer int    `env:"WORKERS_BUFFER"`
+	TrustedSubnet string `env:"TRUSTED_SUBNET"`
 }
 
 type ConfigDatabase struct {
@@ -51,6 +53,7 @@ func New() *Config {
 	flagBufferOfWorkers := flag.Int("wb", WorkersBuffer, "Workers channel buffer")
 	flagEnableHTTPS := flag.Bool("s", EnableHTTPS, "Enable https")
 	flagConfigFile := flag.String("c", "", "configuration file")
+	flagTrustedSubnet := flag.String("t", TrustedSubnet, "trusted subnet")
 	flag.Parse()
 
 	cfg := Config{}
@@ -66,6 +69,7 @@ func New() *Config {
 		cfg.NumOfWorkers = NumOfWorkers
 		cfg.WorkersBuffer = WorkersBuffer
 		cfg.EnableHTTPS = EnableHTTPS
+		cfg.TrustedSubnet = TrustedSubnet
 	}
 
 	cfg.BaseURL = fmt.Sprintf("http://%s/", cfg.ServerAddress)
@@ -99,6 +103,10 @@ func New() *Config {
 
 	if *flagEnableHTTPS {
 		cfg.EnableHTTPS = *flagEnableHTTPS
+	}
+
+	if *flagTrustedSubnet != TrustedSubnet {
+		cfg.TrustedSubnet = *flagTrustedSubnet
 	}
 
 	if cfg.FilePath != FileName {

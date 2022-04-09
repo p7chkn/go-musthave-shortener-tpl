@@ -167,6 +167,16 @@ func (db *PostgresDataBase) DeleteManyURL(ctx context.Context, urls []string, us
 	return nil
 }
 
+func (db *PostgresDataBase) GetStats(ctx context.Context) (handlers.StatResponse, error) {
+	sqlGetStats := `SELECT COUNT(DISTINCT user_id), COUNT (DISTINCT origin_url) FROM urls;`
+	query := db.conn.QueryRowContext(ctx, sqlGetStats)
+	result := handlers.StatResponse{}
+
+	err := query.Scan(&result.CountUser, &result.CountURL)
+	return result, err
+
+}
+
 // isOwner - вспомогательная функция, которая определняет владелец ли переданный
 // пользователь, указанной записи сокращенного URL.
 func (db *PostgresDataBase) isOwner(ctx context.Context, url string, user string) bool {
