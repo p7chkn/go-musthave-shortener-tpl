@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -14,7 +15,7 @@ import (
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/workers"
 )
 
-//go:generate mockery --name=RepositoryInterface -case camel -inpkg
+//go:generate mockery --name=RepositoryInterface --case camel --inpackage
 
 // RepositoryInterface - интерфейс для взаимодействия с репозиторием.
 type RepositoryInterface interface {
@@ -23,6 +24,7 @@ type RepositoryInterface interface {
 	GetUserURL(ctx context.Context, user string) ([]ResponseGetURL, error)
 	AddManyURL(ctx context.Context, urls []ManyPostURL, user string) ([]ManyPostResponse, error)
 	DeleteManyURL(ctx context.Context, urls []string, user string) error
+	GetStats(ctx context.Context) (StatResponse, error)
 	Ping(ctx context.Context) error
 }
 
@@ -49,6 +51,11 @@ type ResponseGetURL struct {
 	OriginalURL string `json:"original_url"`
 }
 
+type StatResponse struct {
+	CountURL  int `json:"urls"`
+	CountUser int `json:"users"`
+}
+
 // ErrorWithDB - тип ошибки от базы данных.
 type ErrorWithDB struct {
 	Err   error
@@ -72,17 +79,20 @@ func NewErrorWithDB(err error, title string) error {
 
 // Handler - структура обработчика запросов.
 type Handler struct {
-	repo    RepositoryInterface
-	baseURL string
-	wp      workers.WorkerPool
+	repo          RepositoryInterface
+	baseURL       string
+	wp            workers.WorkerPool
+	trustedSubnet string
 }
 
 // New - функция создания нового обработчика.
-func New(repo RepositoryInterface, basURL string, wp *workers.WorkerPool) *Handler {
+func New(repo RepositoryInterface, basURL string, wp *workers.WorkerPool,
+	trustedSubnet string) *Handler {
 	return &Handler{
-		repo:    repo,
-		baseURL: basURL,
-		wp:      *wp,
+		repo:          repo,
+		baseURL:       basURL,
+		wp:            *wp,
+		trustedSubnet: trustedSubnet,
 	}
 }
 
@@ -284,6 +294,29 @@ func (h *Handler) DeleteBatch(c *gin.Context) {
 	}
 
 	c.Status(http.StatusAccepted)
+}
+
+func (h *Handler) GetStats(c *gin.Context) {
+	if h.trustedSubnet == "" {
+		c.Status(http.StatusForbidden)
+		return
+	}
+	realAddress := net.ParseIP(c.GetHeader("X-Real-IP"))
+	_, subnet, err := net.ParseCIDR(h.trustedSubnet)
+	if err != nil {
+		h.handleError(c, errors.New("bad request"))
+		return
+	}
+	if !subnet.Contains(realAddress) {
+		c.Status(http.StatusForbidden)
+		return
+	}
+	response, err := h.repo.GetStats(c.Request.Context())
+	if err != nil {
+		h.handleError(c, errors.New("bad request"))
+		return
+	}
+	c.IndentedJSON(http.StatusOK, response)
 }
 
 // handleError обработка типовых ошибок.

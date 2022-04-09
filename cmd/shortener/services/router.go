@@ -12,7 +12,7 @@ import (
 func SetupRouter(repo handlers.RepositoryInterface, cfg *configuration.Config, wp *workers.WorkerPool) *gin.Engine {
 	router := gin.Default()
 
-	handler := handlers.New(repo, cfg.BaseURL, wp)
+	handler := handlers.New(repo, cfg.BaseURL, wp, cfg.TrustedSubnet)
 
 	router.Use(middlewares.GzipEncodeMiddleware())
 	router.Use(middlewares.GzipDecodeMiddleware())
@@ -25,6 +25,7 @@ func SetupRouter(repo handlers.RepositoryInterface, cfg *configuration.Config, w
 	router.GET("/ping", handler.PingDB)
 	router.POST("/api/shorten/batch", handler.CreateBatch)
 	router.DELETE("/api/user/urls", handler.DeleteBatch)
+	router.GET("/api/internal/stats", handler.GetStats)
 
 	router.HandleMethodNotAllowed = true
 

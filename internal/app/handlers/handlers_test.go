@@ -27,7 +27,7 @@ func setupRouter(ctx context.Context, repo RepositoryInterface, baseURL string, 
 		Key:     key,
 		BaseURL: configuration.BaseURL,
 	}
-	handler := New(repo, cfg.BaseURL, wp)
+	handler := New(repo, cfg.BaseURL, wp, cfg.TrustedSubnet)
 	router.Use(middlewares.CookiMiddleware(cfg))
 	router.GET("/:id", handler.RetrieveShortURL)
 	router.POST("/", handler.CreateShortURL)
@@ -529,7 +529,7 @@ func ExampleHandler_CreateBatch() {
 	repo := new(MockRepositoryInterface)
 	wp := &workers.WorkerPool{}
 	cfg := &configuration.Config{}
-	handler := New(repo, cfg.BaseURL, wp)
+	handler := New(repo, cfg.BaseURL, wp, cfg.TrustedSubnet)
 	router.POST("/api/shorten/batch", handler.CreateBatch)
 }
 
@@ -538,6 +538,6 @@ func ExampleHandler_CreateShortURL() {
 	repo := new(MockRepositoryInterface)
 	wp := &workers.WorkerPool{}
 	cfg := &configuration.Config{}
-	handler := New(repo, cfg.BaseURL, wp)
+	handler := New(repo, cfg.BaseURL, wp, cfg.TrustedSubnet)
 	router.POST("/api/shorten", handler.CreateShortURL)
 }

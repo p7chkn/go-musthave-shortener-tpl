@@ -13,6 +13,7 @@ type ConfigFile struct {
 	FileStoragePath string `json:"file_storage_path"`
 	DatabaseDSN     string `json:"database_dsn"`
 	EnableHTTPS     bool   `json:"enable_https"`
+	TrustedSubnet   string `json:"trusted_subnet"`
 }
 
 func getConfigFromFIle(fileName string) Config {
@@ -35,6 +36,7 @@ func getConfigFromFIle(fileName string) Config {
 		BaseURL:       cfg.BaseURL,
 		FilePath:      cfg.FileStoragePath,
 		EnableHTTPS:   cfg.EnableHTTPS,
+		TrustedSubnet: cfg.TrustedSubnet,
 		DataBase: ConfigDatabase{
 			DataBaseURI: cfg.DatabaseDSN,
 		},

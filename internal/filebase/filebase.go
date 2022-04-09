@@ -159,3 +159,12 @@ func (repo *RepositoryMap) writeRow(longURL string, shortURL string, filePath st
 func (repo *RepositoryMap) DeleteManyURL(ctx context.Context, urls []string, user string) error {
 	return nil
 }
+
+func (repo *RepositoryMap) GetStats(ctx context.Context) (handlers.StatResponse, error) {
+	result := handlers.StatResponse{
+		CountURL:  len(repo.values),
+		CountUser: len(repo.usersURL),
+	}
+	return result, nil
+
+}
