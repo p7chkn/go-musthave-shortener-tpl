@@ -15,7 +15,7 @@ import (
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/workers"
 )
 
-//go:generate mockery --name=RepositoryInterface -case camel -inpkg
+//go:generate mockery --name=RepositoryInterface --case camel --inpackage
 
 // RepositoryInterface - интерфейс для взаимодействия с репозиторием.
 type RepositoryInterface interface {
