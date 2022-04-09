@@ -41,7 +41,10 @@ func main() {
 	defer cancel()
 
 	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
+	// Как я понял, в самой задаче имелся ввиду graceful shutdown,
+	// но мы его и так уже иплементировали достаточно давно
+	// получается добавить пару сигналов надоы было.
 	defer signal.Stop(interrupt)
 
 	cfg := configuration.New()
