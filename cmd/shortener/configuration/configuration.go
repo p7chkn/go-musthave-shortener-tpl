@@ -17,8 +17,8 @@ const (
 	ServerAdress = "localhost:8080"
 	BaseURL      = "http://localhost:8080/"
 	EnableHTTPS  = false
-	//DataBaseURI  = "postgresql://pavelchuykin:1234@localhost:5432?sslmode=disable"
-	DataBaseURI   = ""
+	DataBaseURI  = "postgresql://pavelchuykin:1234@localhost:5432?sslmode=disable"
+	//DataBaseURI   = ""
 	NumOfWorkers  = 10
 	WorkersBuffer = 100
 	TrustedSubnet = "127.0.0.1/24"

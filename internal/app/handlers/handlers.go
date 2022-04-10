@@ -20,10 +20,10 @@ import (
 type UserUseCaseInterface interface {
 	GetURL(ctx context.Context, userID string) (string, error)
 	CreateURL(ctx context.Context, longURL string, user string) (string, error)
-	GetUserURL(ctx context.Context, userId string) ([]responses.GetURL, error)
+	GetUserURL(ctx context.Context, userID string) ([]responses.GetURL, error)
 	PingDB(ctx context.Context) error
-	CreateBatch(ctx context.Context, urls []responses.ManyPostURL, userId string) ([]responses.ManyPostResponse, error)
-	DeleteBatch(urls []string, userId string)
+	CreateBatch(ctx context.Context, urls []responses.ManyPostURL, userID string) ([]responses.ManyPostResponse, error)
+	DeleteBatch(urls []string, userID string)
 	GetStats(ctx context.Context, ip net.IP) (bool, responses.StatResponse, error)
 }
 

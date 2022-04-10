@@ -17,12 +17,12 @@ type MockUserUseCaseInterface struct {
 }
 
 // CreateBatch provides a mock function with given fields: ctx, urls, userId
-func (_m *MockUserUseCaseInterface) CreateBatch(ctx context.Context, urls []responses.ManyPostURL, userId string) ([]responses.ManyPostResponse, error) {
-	ret := _m.Called(ctx, urls, userId)
+func (_m *MockUserUseCaseInterface) CreateBatch(ctx context.Context, urls []responses.ManyPostURL, userID string) ([]responses.ManyPostResponse, error) {
+	ret := _m.Called(ctx, urls, userID)
 
 	var r0 []responses.ManyPostResponse
 	if rf, ok := ret.Get(0).(func(context.Context, []responses.ManyPostURL, string) []responses.ManyPostResponse); ok {
-		r0 = rf(ctx, urls, userId)
+		r0 = rf(ctx, urls, userID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]responses.ManyPostResponse)
@@ -31,7 +31,7 @@ func (_m *MockUserUseCaseInterface) CreateBatch(ctx context.Context, urls []resp
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, []responses.ManyPostURL, string) error); ok {
-		r1 = rf(ctx, urls, userId)
+		r1 = rf(ctx, urls, userID)
 	} else {
 		r1 = ret.Error(1)
 	}

@@ -44,19 +44,19 @@ func (us *UserUseCase) CreateURL(ctx context.Context, longURL string, user strin
 	return us.baseURL + shortURL, err
 }
 
-func (us *UserUseCase) GetUserURL(ctx context.Context, userId string) ([]responses.GetURL, error) {
-	return us.repo.GetUserURL(ctx, userId)
+func (us *UserUseCase) GetUserURL(ctx context.Context, userID string) ([]responses.GetURL, error) {
+	return us.repo.GetUserURL(ctx, userID)
 }
 
 func (us *UserUseCase) PingDB(ctx context.Context) error {
 	return us.repo.Ping(ctx)
 }
 
-func (us *UserUseCase) CreateBatch(ctx context.Context, urls []responses.ManyPostURL, userId string) ([]responses.ManyPostResponse, error) {
-	return us.repo.AddManyURL(ctx, urls, userId)
+func (us *UserUseCase) CreateBatch(ctx context.Context, urls []responses.ManyPostURL, userID string) ([]responses.ManyPostResponse, error) {
+	return us.repo.AddManyURL(ctx, urls, userID)
 }
 
-func (us *UserUseCase) DeleteBatch(urls []string, userId string) {
+func (us *UserUseCase) DeleteBatch(urls []string, userID string) {
 	var sliceData [][]string
 	for i := 10; i <= len(urls); i += 10 {
 		sliceData = append(sliceData, urls[i-10:i])
@@ -68,7 +68,7 @@ func (us *UserUseCase) DeleteBatch(urls []string, userId string) {
 	for _, item := range sliceData {
 		func(taskData []string) {
 			us.wp.Push(func(ctx context.Context) error {
-				err := us.repo.DeleteManyURL(ctx, taskData, userId)
+				err := us.repo.DeleteManyURL(ctx, taskData, userID)
 				return err
 			})
 		}(item)
