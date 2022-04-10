@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/tls"
 	"database/sql"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/usecases"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -50,6 +52,12 @@ func main() {
 	cfg := configuration.New()
 
 	var handler *gin.Engine
+	var userUsecase *usecases.UserUseCase
+	_, subnet, err := net.ParseCIDR(cfg.TrustedSubnet)
+
+	if err != nil {
+		panic(err)
+	}
 
 	wp := workers.New(ctx, cfg.NumOfWorkers, cfg.WorkersBuffer)
 
@@ -67,11 +75,11 @@ func main() {
 		if err != nil {
 			log.Fatal(err.Error())
 		}
-
-		handler = services.SetupRouter(database.NewDatabaseRepository(cfg.BaseURL, db), cfg, wp)
+		userUsecase = usecases.NewUserUseCase(database.NewDatabaseRepository(cfg.BaseURL, db), cfg.BaseURL, wp, subnet)
 	} else {
-		handler = services.SetupRouter(filebase.NewFileRepository(ctx, cfg.FilePath, cfg.BaseURL), cfg, wp)
+		userUsecase = usecases.NewUserUseCase(filebase.NewFileRepository(ctx, cfg.FilePath, cfg.BaseURL), cfg.BaseURL, wp, subnet)
 	}
+	handler = services.SetupRouter(userUsecase, cfg)
 
 	g, ctx := errgroup.WithContext(ctx)
 
@@ -126,7 +134,7 @@ func main() {
 		_ = httpServer.Shutdown(shutdownCtx)
 	}
 
-	err := g.Wait()
+	err = g.Wait()
 	if err != nil {
 		log.Printf("server returning an error: %v", err)
 	}

@@ -5,14 +5,13 @@ import (
 	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/configuration"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/handlers"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/middlewares"
-	"github.com/p7chkn/go-musthave-shortener-tpl/internal/workers"
 )
 
 // SetupRouter - подготоваливает роутер для обработки запросов.
-func SetupRouter(repo handlers.RepositoryInterface, cfg *configuration.Config, wp *workers.WorkerPool) *gin.Engine {
+func SetupRouter(useCase handlers.UserUseCaseInterface, cfg *configuration.Config) *gin.Engine {
 	router := gin.Default()
 
-	handler := handlers.New(repo, cfg.BaseURL, wp, cfg.TrustedSubnet)
+	handler := handlers.New(useCase)
 
 	router.Use(middlewares.GzipEncodeMiddleware())
 	router.Use(middlewares.GzipDecodeMiddleware())

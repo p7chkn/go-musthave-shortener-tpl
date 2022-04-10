@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/responses"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -20,14 +21,14 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func setupRouter(ctx context.Context, repo RepositoryInterface, baseURL string, wp *workers.WorkerPool) (*gin.Engine, *configuration.Config) {
+func setupRouter(useCase UserUseCaseInterface) (*gin.Engine, *configuration.Config) {
 	router := gin.Default()
 	key, _ := configuration.GenerateRandom(16)
 	cfg := &configuration.Config{
 		Key:     key,
 		BaseURL: configuration.BaseURL,
 	}
-	handler := New(repo, cfg.BaseURL, wp, cfg.TrustedSubnet)
+	handler := New(useCase)
 	router.Use(middlewares.CookiMiddleware(cfg))
 	router.GET("/:id", handler.RetrieveShortURL)
 	router.POST("/", handler.CreateShortURL)
@@ -93,9 +94,9 @@ func TestRetriveShortURL(t *testing.T) {
 			go func() {
 				wp.Run(ctx)
 			}()
-			repoMock := new(MockRepositoryInterface)
-			repoMock.On("GetURL", mock.Anything, tt.query).Return(tt.result, tt.err)
-			router, _ := setupRouter(ctx, repoMock, configuration.BaseURL, wp)
+			useCaseMock := new(MockUserUseCaseInterface)
+			useCaseMock.On("GetURL", mock.Anything, tt.query).Return(tt.result, tt.err)
+			router, _ := setupRouter(useCaseMock)
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest(http.MethodGet, "/"+tt.query, nil)
 			router.ServeHTTP(w, req)
@@ -130,7 +131,7 @@ func TestCreateShortURL(t *testing.T) {
 			name:   "correct POST",
 			query:  "",
 			body:   "http://iloverestaurant.ru/",
-			result: "98fv58Wr3hGGIzm2-aH2zA628Ng=",
+			result: "http://localhost:8080/98fv58Wr3hGGIzm2-aH2zA628Ng=",
 			want: want{
 				code:        201,
 				response:    `http://localhost:8080/98fv58Wr3hGGIzm2-aH2zA628Ng=`,
@@ -157,9 +158,9 @@ func TestCreateShortURL(t *testing.T) {
 			go func() {
 				wp.Run(ctx)
 			}()
-			repoMock := new(MockRepositoryInterface)
-			repoMock.On("AddURL", mock.Anything, tt.body, tt.result, mock.Anything).Return(nil)
-			router, _ := setupRouter(ctx, repoMock, configuration.BaseURL, wp)
+			useCaseMock := new(MockUserUseCaseInterface)
+			useCaseMock.On("CreateURL", mock.Anything, tt.body, mock.Anything).Return(tt.result, nil)
+			router, _ := setupRouter(useCaseMock)
 			body := strings.NewReader(tt.body)
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest(http.MethodPost, "/"+tt.query, body)
@@ -197,7 +198,7 @@ func TestShortenURL(t *testing.T) {
 			query:   "api/shorten",
 			body:    `{"url": "http://iloverestaurant.ru/"}`,
 			rawData: "http://iloverestaurant.ru/",
-			result:  "98fv58Wr3hGGIzm2-aH2zA628Ng=",
+			result:  "http://localhost:8080/98fv58Wr3hGGIzm2-aH2zA628Ng=",
 			want: want{
 				code:        201,
 				response:    `{"result": "http://localhost:8080/98fv58Wr3hGGIzm2-aH2zA628Ng="}`,
@@ -225,9 +226,9 @@ func TestShortenURL(t *testing.T) {
 			go func() {
 				wp.Run(ctx)
 			}()
-			repoMock := new(MockRepositoryInterface)
-			repoMock.On("AddURL", mock.Anything, tt.rawData, tt.result, mock.Anything).Return(nil)
-			router, _ := setupRouter(ctx, repoMock, configuration.BaseURL, wp)
+			useCaseMock := new(MockUserUseCaseInterface)
+			useCaseMock.On("CreateURL", mock.Anything, tt.rawData, mock.Anything).Return(tt.result, nil)
+			router, _ := setupRouter(useCaseMock)
 			body := strings.NewReader(tt.body)
 			w := httptest.NewRecorder()
 			fmt.Println(tt.query)
@@ -256,13 +257,13 @@ func TestGetUserURL(t *testing.T) {
 	tests := []struct {
 		name     string
 		query    string
-		response []ResponseGetURL
+		response []responses.GetURL
 		want     want
 	}{
 		{
 			name:  "correct GET",
 			query: "user/urls",
-			response: []ResponseGetURL{
+			response: []responses.GetURL{
 				{
 					ShortURL:    "http://localhost:8080/1yhVmSPGQlZn3EnrI2kd7Oxu5UM=",
 					OriginalURL: "http://hbqouwjbx5jl.ru/lkm0skvkix1ejv",
@@ -287,9 +288,9 @@ func TestGetUserURL(t *testing.T) {
 				wp.Run(ctx)
 			}()
 			userID, _ := uuid.NewV4()
-			repoMock := new(MockRepositoryInterface)
-			repoMock.On("GetUserURL", mock.Anything, userID.String()).Return(tt.response, nil)
-			router, cfg := setupRouter(ctx, repoMock, configuration.BaseURL, wp)
+			useCaseMock := new(MockUserUseCaseInterface)
+			useCaseMock.On("GetUserURL", mock.Anything, userID.String()).Return(tt.response, nil)
+			router, cfg := setupRouter(useCaseMock)
 
 			encoder, _ := utils.New(cfg.Key)
 
@@ -326,8 +327,8 @@ func TestCreateBatch(t *testing.T) {
 		name         string
 		query        string
 		body         string
-		mockData     []ManyPostURL
-		mockResponce []ManyPostResponse
+		mockData     []responses.ManyPostURL
+		mockResponce []responses.ManyPostResponse
 		want         want
 	}{
 		{
@@ -347,7 +348,7 @@ func TestCreateBatch(t *testing.T) {
 					"original_url": "https://www.gismeteo.ru/weather-sankt-peterburg-4079/10-days/"
 				}
 			] `,
-			mockData: []ManyPostURL{
+			mockData: []responses.ManyPostURL{
 				{
 					CorrelationID: "1",
 					OriginalURL:   "https://www.postgresqltutorial.com/postgresql-create-table/",
@@ -361,7 +362,7 @@ func TestCreateBatch(t *testing.T) {
 					OriginalURL:   "https://www.gismeteo.ru/weather-sankt-peterburg-4079/10-days/",
 				},
 			},
-			mockResponce: []ManyPostResponse{
+			mockResponce: []responses.ManyPostResponse{
 				{
 					CorrelationID: "1",
 					ShortURL:      "http://localhost:8080/Kkm_RJeyfdOxwVZoQA1k9E8Sg8Q=",
@@ -406,10 +407,10 @@ func TestCreateBatch(t *testing.T) {
 				wp.Run(ctx)
 			}()
 			userID, _ := uuid.NewV4()
-			repoMock := new(MockRepositoryInterface)
-			repoMock.On("AddManyURL", mock.Anything, tt.mockData, userID.String(), mock.Anything).Return(tt.mockResponce, nil)
+			useCaseMock := new(MockUserUseCaseInterface)
+			useCaseMock.On("CreateBatch", mock.Anything, tt.mockData, userID.String()).Return(tt.mockResponce, nil)
 
-			router, cfg := setupRouter(ctx, repoMock, configuration.BaseURL, wp)
+			router, cfg := setupRouter(useCaseMock)
 			encoder, _ := utils.New(cfg.Key)
 
 			cookie := http.Cookie{
@@ -472,9 +473,9 @@ func TestDeleteBatch(t *testing.T) {
 				wp.Run(ctx)
 			}()
 			userID, _ := uuid.NewV4()
-			repoMock := new(MockRepositoryInterface)
-			repoMock.On("DeleteManyURL", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-			router, cfg := setupRouter(ctx, repoMock, configuration.BaseURL, wp)
+			useCaseMock := new(MockUserUseCaseInterface)
+			useCaseMock.On("DeleteBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			router, cfg := setupRouter(useCaseMock)
 
 			encoder, _ := utils.New(cfg.Key)
 
@@ -504,9 +505,9 @@ func BenchmarkHandler_GetUserURL(b *testing.B) {
 				wp.Run(ctx)
 			}()
 			userID, _ := uuid.NewV4()
-			repoMock := new(MockRepositoryInterface)
-			repoMock.On("DeleteManyURL", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-			router, cfg := setupRouter(ctx, repoMock, configuration.BaseURL, wp)
+			useCaseMock := new(MockUserUseCaseInterface)
+			useCaseMock.On("DeleteBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			router, cfg := setupRouter(useCaseMock)
 
 			encoder, _ := utils.New(cfg.Key)
 
@@ -526,18 +527,14 @@ func BenchmarkHandler_GetUserURL(b *testing.B) {
 
 func ExampleHandler_CreateBatch() {
 	router := gin.Default()
-	repo := new(MockRepositoryInterface)
-	wp := &workers.WorkerPool{}
-	cfg := &configuration.Config{}
-	handler := New(repo, cfg.BaseURL, wp, cfg.TrustedSubnet)
+	userCase := new(MockUserUseCaseInterface)
+	handler := New(userCase)
 	router.POST("/api/shorten/batch", handler.CreateBatch)
 }
 
 func ExampleHandler_CreateShortURL() {
 	router := gin.Default()
-	repo := new(MockRepositoryInterface)
-	wp := &workers.WorkerPool{}
-	cfg := &configuration.Config{}
-	handler := New(repo, cfg.BaseURL, wp, cfg.TrustedSubnet)
+	userCase := new(MockUserUseCaseInterface)
+	handler := New(userCase)
 	router.POST("/api/shorten", handler.CreateShortURL)
 }

@@ -1,4 +1,4 @@
-// Package services - предназначен для настройки и установления необходимых
+// Package usecases - предназначен для настройки и установления необходимых
 // для приложения сервисов.
 package services
 
@@ -14,7 +14,9 @@ func SetUpDataBase(db *sql.DB, ctx context.Context) error {
 
 	var extention string
 	query := db.QueryRowContext(ctx, "SELECT 'exists' FROM pg_extension WHERE extname='uuid-ossp';")
-	query.Scan(&extention)
+	if err := query.Scan(&extention); err != nil {
+		return err
+	}
 	if extention != "exists" {
 		_, err := db.ExecContext(ctx, `CREATE EXTENSION "uuid-ossp";`)
 		if err != nil {
