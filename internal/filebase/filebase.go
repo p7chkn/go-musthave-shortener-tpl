@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/responses"
-	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/usecases"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/services"
 	"log"
 	"os"
 
@@ -15,8 +15,8 @@ import (
 )
 
 // NewFileRepository - создание нового интерфейса для репозитория.
-func NewFileRepository(ctx context.Context, filePath string, baseURL string) usecases.UserRepositoryInterface {
-	return usecases.UserRepositoryInterface(NewRepositoryMap(ctx, filePath, baseURL))
+func NewFileRepository(ctx context.Context, filePath string, baseURL string) services.UserRepositoryInterface {
+	return services.UserRepositoryInterface(NewRepositoryMap(ctx, filePath, baseURL))
 }
 
 // RepositoryMap - структура для хранения данных в файле.

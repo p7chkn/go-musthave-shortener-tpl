@@ -16,9 +16,9 @@ import (
 
 //go:generate mockery --name=UserUseCaseInterface --case camel --inpackage
 
-// RepositoryInterface - интерфейс для взаимодействия с репозиторием.
-type UserUseCaseInterface interface {
-	GetURL(ctx context.Context, userID string) (string, error)
+// URLServiceInterface - интерфейс для взаимодействия с репозиторием.
+type URLServiceInterface interface {
+	GetURL(ctx context.Context, url string) (string, error)
 	CreateURL(ctx context.Context, longURL string, user string) (string, error)
 	GetUserURL(ctx context.Context, userID string) ([]responses.GetURL, error)
 	PingDB(ctx context.Context) error
@@ -29,13 +29,13 @@ type UserUseCaseInterface interface {
 
 // Handler - структура обработчика запросов.
 type Handler struct {
-	useCase UserUseCaseInterface
+	service URLServiceInterface
 }
 
 // New - функция создания нового обработчика.
-func New(service UserUseCaseInterface) *Handler {
+func New(service URLServiceInterface) *Handler {
 	return &Handler{
-		useCase: service,
+		service: service,
 	}
 }
 
@@ -46,19 +46,22 @@ func New(service UserUseCaseInterface) *Handler {
 // Если ссылка не найдена - код ответа 404.
 func (h *Handler) RetrieveShortURL(c *gin.Context) {
 	result := map[string]string{}
-	long, err := h.useCase.GetURL(c.Request.Context(), c.Param("id"))
-
+	long, err := h.service.GetURL(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		var ue *custom_errors.ErrorWithDB
-		if errors.As(err, &ue) && ue.Title == "deleted" {
-			c.Status(http.StatusGone)
+		statusCode := custom_errors.ParseError(err)
+		switch statusCode {
+		case http.StatusGone:
+			c.Status(statusCode)
+			return
+		case http.StatusNotFound:
+			result["detail"] = err.Error()
+			c.IndentedJSON(statusCode, result)
+			return
+		default:
+			c.Status(http.StatusInternalServerError)
 			return
 		}
-		result["detail"] = err.Error()
-		c.IndentedJSON(http.StatusNotFound, result)
-		return
 	}
-
 	c.Header("Location", long)
 	c.String(http.StatusTemporaryRedirect, "")
 }
@@ -77,15 +80,17 @@ func (h *Handler) CreateShortURL(c *gin.Context) {
 		h.handleError(c, err)
 		return
 	}
-	responseURL, err := h.useCase.CreateURL(c.Request.Context(), string(body), c.GetString("userId"))
+	responseURL, err := h.service.CreateURL(c.Request.Context(), string(body), c.GetString("userId"))
 	if err != nil {
-		var ue *custom_errors.ErrorWithDB
-		if errors.As(err, &ue) && ue.Title == "UniqConstraint" {
-			c.String(http.StatusConflict, responseURL)
+		statusCode := custom_errors.ParseError(err)
+		switch statusCode {
+		case http.StatusConflict:
+			c.String(statusCode, responseURL)
+			return
+		default:
+			c.Status(http.StatusInternalServerError)
 			return
 		}
-		c.IndentedJSON(http.StatusInternalServerError, err)
-		return
 	}
 	c.String(http.StatusCreated, responseURL)
 }
@@ -119,16 +124,19 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 		h.handleError(c, errors.New("bad request"))
 		return
 	}
-	responseURL, err := h.useCase.CreateURL(c.Request.Context(), url.URL, c.GetString("userId"))
+	responseURL, err := h.service.CreateURL(c.Request.Context(), url.URL, c.GetString("userId"))
 	if err != nil {
-		var ue *custom_errors.ErrorWithDB
-		if errors.As(err, &ue) && ue.Title == "UniqConstraint" {
+
+		statusCode := custom_errors.ParseError(err)
+		switch statusCode {
+		case http.StatusConflict:
 			result["result"] = responseURL
 			c.IndentedJSON(http.StatusConflict, result)
 			return
+		default:
+			c.Status(http.StatusInternalServerError)
+			return
 		}
-		c.IndentedJSON(http.StatusInternalServerError, err)
-		return
 	}
 	result["result"] = responseURL
 	c.IndentedJSON(http.StatusCreated, result)
@@ -140,14 +148,17 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 // В случае ошибки получение ссылок из базы данных - код ответа 500.
 // В случае отсутствия ссылок у пользователя - код ответа 204.
 func (h *Handler) GetUserURL(c *gin.Context) {
-	result, err := h.useCase.GetUserURL(c.Request.Context(), c.GetString("userId"))
+	result, err := h.service.GetUserURL(c.Request.Context(), c.GetString("userId"))
 	if err != nil {
-		c.IndentedJSON(http.StatusInternalServerError, err)
-		return
-	}
-	if len(result) == 0 {
-		c.IndentedJSON(http.StatusNoContent, result)
-		return
+		statusCode := custom_errors.ParseError(err)
+		switch statusCode {
+		case http.StatusNoContent:
+			c.IndentedJSON(statusCode, result)
+			return
+		default:
+			c.IndentedJSON(http.StatusInternalServerError, err)
+			return
+		}
 	}
 	c.IndentedJSON(http.StatusOK, result)
 }
@@ -156,7 +167,7 @@ func (h *Handler) GetUserURL(c *gin.Context) {
 // В случае нормального соединения - код ответа 200.
 // В случае ошибки с базой данных - код ответа 500.
 func (h *Handler) PingDB(c *gin.Context) {
-	err := h.useCase.PingDB(c.Request.Context())
+	err := h.service.PingDB(c.Request.Context())
 	if err != nil {
 		c.String(http.StatusInternalServerError, "")
 		return
@@ -184,7 +195,7 @@ func (h *Handler) CreateBatch(c *gin.Context) {
 		h.handleError(c, err)
 		return
 	}
-	response, err := h.useCase.CreateBatch(c.Request.Context(), data, c.GetString("userId"))
+	response, err := h.service.CreateBatch(c.Request.Context(), data, c.GetString("userId"))
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -216,13 +227,13 @@ func (h *Handler) DeleteBatch(c *gin.Context) {
 		h.handleError(c, err)
 		return
 	}
-	h.useCase.DeleteBatch(data, c.GetString("userId"))
+	h.service.DeleteBatch(data, c.GetString("userId"))
 
 	c.Status(http.StatusAccepted)
 }
 
 func (h *Handler) GetStats(c *gin.Context) {
-	hasPermission, response, err := h.useCase.GetStats(c.Request.Context(), net.ParseIP(c.GetHeader("X-Real-IP")))
+	hasPermission, response, err := h.service.GetStats(c.Request.Context(), net.ParseIP(c.GetHeader("X-Real-IP")))
 	if !hasPermission {
 		c.Status(http.StatusForbidden)
 		return

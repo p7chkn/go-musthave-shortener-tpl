@@ -3,8 +3,8 @@ package handlers
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/responses"
+	custom_errors "github.com/p7chkn/go-musthave-shortener-tpl/internal/errors"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -21,7 +21,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func setupRouter(useCase UserUseCaseInterface) (*gin.Engine, *configuration.Config) {
+func setupRouter(useCase URLServiceInterface) (*gin.Engine, *configuration.Config) {
 	router := gin.Default()
 	key, _ := configuration.GenerateRandom(16)
 	cfg := &configuration.Config{
@@ -56,7 +56,7 @@ func TestRetriveShortURL(t *testing.T) {
 			name:   "GET without id",
 			query:  "",
 			result: "",
-			err:    errors.New("not found"),
+			err:    custom_errors.NewCustomError(errors.New("not found"), http.StatusNotFound),
 			want: want{
 				code:        405,
 				response:    `405 method not allowed`,
@@ -78,7 +78,7 @@ func TestRetriveShortURL(t *testing.T) {
 			name:   "GET with incorrect id",
 			query:  "12398fv58Wr3hGGIzm2-aH2zA628Ng=",
 			result: "",
-			err:    errors.New("not found"),
+			err:    custom_errors.NewCustomError(errors.New("not found"), http.StatusNotFound),
 			want: want{
 				code:        404,
 				response:    `{"detail":"not found"}`,
@@ -231,7 +231,6 @@ func TestShortenURL(t *testing.T) {
 			router, _ := setupRouter(useCaseMock)
 			body := strings.NewReader(tt.body)
 			w := httptest.NewRecorder()
-			fmt.Println(tt.query)
 			req, _ := http.NewRequest(http.MethodPost, "/"+tt.query, body)
 			router.ServeHTTP(w, req)
 			assert.Equal(t, tt.want.contentType, w.Header()["Content-Type"][0])

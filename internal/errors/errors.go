@@ -1,23 +1,35 @@
 package customerrors
 
-import "fmt"
+import (
+	"fmt"
+	"net/http"
+)
 
-type ErrorWithDB struct {
-	Err   error
-	Title string
+func NewCustomError(err error, statusCode int) error {
+	return &CustomError{
+		Err:        err,
+		StatusCode: statusCode,
+	}
 }
 
-func (err *ErrorWithDB) Error() string {
+func ParseError(err error) int {
+	switch e := err.(type) {
+	case *CustomError:
+		return e.StatusCode
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
+type CustomError struct {
+	Err        error
+	StatusCode int
+}
+
+func (err *CustomError) Error() string {
 	return fmt.Sprintf("%v", err.Err)
 }
 
-func (err *ErrorWithDB) Unwrap() error {
+func (err *CustomError) Unwrap() error {
 	return err.Err
-}
-
-func NewErrorWithDB(err error, title string) error {
-	return &ErrorWithDB{
-		Err:   err,
-		Title: title,
-	}
 }

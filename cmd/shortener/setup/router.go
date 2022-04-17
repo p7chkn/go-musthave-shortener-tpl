@@ -1,4 +1,4 @@
-package services
+package setup
 
 import (
 	"github.com/gin-gonic/gin"
@@ -8,7 +8,7 @@ import (
 )
 
 // SetupRouter - подготоваливает роутер для обработки запросов.
-func SetupRouter(useCase handlers.UserUseCaseInterface, cfg *configuration.Config) *gin.Engine {
+func SetupRouter(useCase handlers.URLServiceInterface, cfg *configuration.Config) *gin.Engine {
 	router := gin.Default()
 
 	handler := handlers.New(useCase)

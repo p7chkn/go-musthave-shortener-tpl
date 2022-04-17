@@ -1,4 +1,4 @@
-package usecases
+package services
 
 import (
 	"context"
@@ -18,8 +18,8 @@ type UserRepositoryInterface interface {
 	Ping(ctx context.Context) error
 }
 
-func NewUserUseCase(repo UserRepositoryInterface, baseURL string, wp *workers.WorkerPool, subnet *net.IPNet) *UserUseCase {
-	return &UserUseCase{
+func NewURLService(repo UserRepositoryInterface, baseURL string, wp *workers.WorkerPool, subnet *net.IPNet) *URLService {
+	return &URLService{
 		repo:    repo,
 		baseURL: baseURL,
 		wp:      wp,
@@ -27,36 +27,36 @@ func NewUserUseCase(repo UserRepositoryInterface, baseURL string, wp *workers.Wo
 	}
 }
 
-type UserUseCase struct {
+type URLService struct {
 	repo    UserRepositoryInterface
 	baseURL string
 	wp      *workers.WorkerPool
 	subnet  *net.IPNet
 }
 
-func (us *UserUseCase) GetURL(ctx context.Context, userID string) (string, error) {
+func (us *URLService) GetURL(ctx context.Context, userID string) (string, error) {
 	return us.repo.GetURL(ctx, userID)
 }
 
-func (us *UserUseCase) CreateURL(ctx context.Context, longURL string, user string) (string, error) {
+func (us *URLService) CreateURL(ctx context.Context, longURL string, user string) (string, error) {
 	shortURL := shortener.ShorterURL(longURL)
 	err := us.repo.AddURL(ctx, longURL, shortURL, user)
 	return us.baseURL + shortURL, err
 }
 
-func (us *UserUseCase) GetUserURL(ctx context.Context, userID string) ([]responses.GetURL, error) {
+func (us *URLService) GetUserURL(ctx context.Context, userID string) ([]responses.GetURL, error) {
 	return us.repo.GetUserURL(ctx, userID)
 }
 
-func (us *UserUseCase) PingDB(ctx context.Context) error {
+func (us *URLService) PingDB(ctx context.Context) error {
 	return us.repo.Ping(ctx)
 }
 
-func (us *UserUseCase) CreateBatch(ctx context.Context, urls []responses.ManyPostURL, userID string) ([]responses.ManyPostResponse, error) {
+func (us *URLService) CreateBatch(ctx context.Context, urls []responses.ManyPostURL, userID string) ([]responses.ManyPostResponse, error) {
 	return us.repo.AddManyURL(ctx, urls, userID)
 }
 
-func (us *UserUseCase) DeleteBatch(urls []string, userID string) {
+func (us *URLService) DeleteBatch(urls []string, userID string) {
 	var sliceData [][]string
 	for i := 10; i <= len(urls); i += 10 {
 		sliceData = append(sliceData, urls[i-10:i])
@@ -75,7 +75,7 @@ func (us *UserUseCase) DeleteBatch(urls []string, userID string) {
 	}
 }
 
-func (us *UserUseCase) GetStats(ctx context.Context, ip net.IP) (bool, responses.StatResponse, error) {
+func (us *URLService) GetStats(ctx context.Context, ip net.IP) (bool, responses.StatResponse, error) {
 	if us.subnet == nil || !us.subnet.Contains(ip) {
 		return false, responses.StatResponse{}, nil
 	}

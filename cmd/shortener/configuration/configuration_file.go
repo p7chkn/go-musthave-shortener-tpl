@@ -40,5 +40,6 @@ func getConfigFromFIle(fileName string) Config {
 		DataBase: ConfigDatabase{
 			DataBaseURI: cfg.DatabaseDSN,
 		},
+		GrpcPort: grpcPort,
 	}
 }

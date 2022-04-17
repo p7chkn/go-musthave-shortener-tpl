@@ -4,7 +4,11 @@ import (
 	"context"
 	"crypto/tls"
 	"database/sql"
-	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/usecases"
+	"fmt"
+	grpchandler "github.com/p7chkn/go-musthave-shortener-tpl/internal/app/grpc_handler"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/services"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/pb"
+	"google.golang.org/grpc"
 	"log"
 	"net"
 	"net/http"
@@ -21,7 +25,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/configuration"
-	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/services"
+	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/setup"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/database"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/filebase"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/workers"
@@ -29,6 +33,7 @@ import (
 
 var (
 	httpServer   *http.Server
+	grpcServer   *grpc.Server
 	buildVersion = "N/A"
 	buildDate    = "N/A"
 	buildCommit  = "N/A"
@@ -52,7 +57,7 @@ func main() {
 	cfg := configuration.New()
 
 	var handler *gin.Engine
-	var userUsecase *usecases.UserUseCase
+	var service *services.URLService
 	_, subnet, err := net.ParseCIDR(cfg.TrustedSubnet)
 
 	if err != nil {
@@ -71,15 +76,16 @@ func main() {
 			log.Fatal(err)
 		}
 		defer db.Close()
-		err = services.SetUpDataBase(db, ctx)
+		err = setup.SetUpDataBase(db, ctx)
 		if err != nil {
 			log.Fatal(err.Error())
 		}
-		userUsecase = usecases.NewUserUseCase(database.NewDatabaseRepository(cfg.BaseURL, db), cfg.BaseURL, wp, subnet)
+		service = services.NewURLService(database.NewDatabaseRepository(cfg.BaseURL, db), cfg.BaseURL, wp, subnet)
 	} else {
-		userUsecase = usecases.NewUserUseCase(filebase.NewFileRepository(ctx, cfg.FilePath, cfg.BaseURL), cfg.BaseURL, wp, subnet)
+		service = services.NewURLService(filebase.NewFileRepository(ctx, cfg.FilePath, cfg.BaseURL), cfg.BaseURL, wp, subnet)
 	}
-	handler = services.SetupRouter(userUsecase, cfg)
+	handler = setup.SetupRouter(service, cfg)
+	grpcHandler := grpchandler.NewGRPCHandler(service)
 
 	g, ctx := errgroup.WithContext(ctx)
 
@@ -113,6 +119,18 @@ func main() {
 			}
 		}
 		return nil
+	})
+
+	g.Go(func() error {
+		lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.GrpcPort))
+		if err != nil {
+			log.Printf("gRPC server failed to listen: %v", err.Error())
+			return err
+		}
+		grpcServer = grpc.NewServer()
+		pb.RegisterURLServer(grpcServer, grpcHandler)
+		log.Printf("server listening at %v", lis.Addr())
+		return grpcServer.Serve(lis)
 	})
 
 	select {

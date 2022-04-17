@@ -7,8 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/responses"
-	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/usecases"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/services"
 	custom_errors "github.com/p7chkn/go-musthave-shortener-tpl/internal/errors"
+	"net/http"
 
 	"github.com/jackc/pgerrcode"
 	"github.com/lib/pq"
@@ -29,8 +30,8 @@ type PostgresDataBase struct {
 }
 
 // NewDatabaseRepository - создание нового интерфейства для репозитория.
-func NewDatabaseRepository(baseURL string, db *sql.DB) usecases.UserRepositoryInterface {
-	return usecases.UserRepositoryInterface(NewDatabase(baseURL, db))
+func NewDatabaseRepository(baseURL string, db *sql.DB) services.UserRepositoryInterface {
+	return services.UserRepositoryInterface(NewDatabase(baseURL, db))
 }
 
 // NewDatabase - создание новой структуры взаимодействия с базой данных.
@@ -63,7 +64,7 @@ func (db *PostgresDataBase) AddURL(ctx context.Context, longURL string, shortURL
 
 	if err, ok := err.(*pq.Error); ok {
 		if err.Code == pgerrcode.UniqueViolation {
-			return custom_errors.NewErrorWithDB(err, "UniqConstraint")
+			return custom_errors.NewCustomError(err, http.StatusConflict)
 		}
 	}
 
@@ -80,10 +81,10 @@ func (db *PostgresDataBase) GetURL(ctx context.Context, shortURL string) (string
 		return "", nil
 	}
 	if result.OriginURL == "" {
-		return "", custom_errors.NewErrorWithDB(errors.New("not found"), "Not found")
+		return "", custom_errors.NewCustomError(errors.New("not found"), http.StatusNotFound)
 	}
 	if result.IsDeleted {
-		return "", custom_errors.NewErrorWithDB(errors.New("deleted"), "deleted")
+		return "", custom_errors.NewCustomError(errors.New("deleted"), http.StatusGone)
 	}
 	return result.OriginURL, nil
 }
@@ -112,7 +113,9 @@ func (db *PostgresDataBase) GetUserURL(ctx context.Context, user string) ([]resp
 		u.ShortURL = db.baseURL + u.ShortURL
 		result = append(result, u)
 	}
-
+	if len(result) == 0 {
+		return result, custom_errors.NewCustomError(errors.New("no content"), http.StatusNoContent)
+	}
 	return result, nil
 }
 

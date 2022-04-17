@@ -1,6 +1,6 @@
-// Package usecases - предназначен для настройки и установления необходимых
+// Package services - предназначен для настройки и установления необходимых
 // для приложения сервисов.
-package services
+package setup
 
 import (
 	"context"

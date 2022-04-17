@@ -22,6 +22,7 @@ const (
 	NumOfWorkers  = 10
 	WorkersBuffer = 100
 	TrustedSubnet = "127.0.0.1/24"
+	grpcPort      = 5050
 )
 
 // Config - структура для кофигурации сервиса.
@@ -35,6 +36,7 @@ type Config struct {
 	Key           []byte
 	WorkersBuffer int    `env:"WORKERS_BUFFER"`
 	TrustedSubnet string `env:"TRUSTED_SUBNET"`
+	GrpcPort      int
 }
 
 type ConfigDatabase struct {
@@ -70,6 +72,7 @@ func New() *Config {
 		cfg.WorkersBuffer = WorkersBuffer
 		cfg.EnableHTTPS = EnableHTTPS
 		cfg.TrustedSubnet = TrustedSubnet
+		cfg.GrpcPort = grpcPort
 	}
 
 	cfg.BaseURL = fmt.Sprintf("http://%s/", cfg.ServerAddress)
