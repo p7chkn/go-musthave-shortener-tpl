@@ -8,7 +8,9 @@ import (
 	"errors"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/responses"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/services"
+	custom_errors "github.com/p7chkn/go-musthave-shortener-tpl/internal/errors"
 	"log"
+	"net/http"
 	"os"
 
 	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/configuration"
@@ -83,6 +85,10 @@ func (repo *RepositoryMap) GetUserURL(ctx context.Context, user string) ([]respo
 			OriginalURL: repo.values[url],
 		}
 		result = append(result, temp)
+	}
+
+	if len(result) == 0 {
+		return result, custom_errors.NewCustomError(errors.New("no content"), http.StatusNoContent)
 	}
 
 	return result, nil
