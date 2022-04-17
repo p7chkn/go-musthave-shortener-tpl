@@ -151,6 +151,9 @@ func main() {
 	if httpServer != nil {
 		_ = httpServer.Shutdown(shutdownCtx)
 	}
+	if grpcServer != nil {
+		grpcServer.GracefulStop()
+	}
 
 	err = g.Wait()
 	if err != nil {
