@@ -6,16 +6,19 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/responses"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/services"
+	custom_errors "github.com/p7chkn/go-musthave-shortener-tpl/internal/errors"
 	"log"
+	"net/http"
 	"os"
 
 	"github.com/p7chkn/go-musthave-shortener-tpl/cmd/shortener/configuration"
-	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/handlers"
 )
 
 // NewFileRepository - создание нового интерфейса для репозитория.
-func NewFileRepository(ctx context.Context, filePath string, baseURL string) handlers.RepositoryInterface {
-	return handlers.RepositoryInterface(NewRepositoryMap(ctx, filePath, baseURL))
+func NewFileRepository(ctx context.Context, filePath string, baseURL string) services.UserRepositoryInterface {
+	return services.UserRepositoryInterface(NewRepositoryMap(ctx, filePath, baseURL))
 }
 
 // RepositoryMap - структура для хранения данных в файле.
@@ -74,14 +77,18 @@ func (repo *RepositoryMap) GetURL(ctx context.Context, shortURL string) (string,
 }
 
 // GetUserURL - получение всех URL пользователя.
-func (repo *RepositoryMap) GetUserURL(ctx context.Context, user string) ([]handlers.ResponseGetURL, error) {
-	var result []handlers.ResponseGetURL
+func (repo *RepositoryMap) GetUserURL(ctx context.Context, user string) ([]responses.GetURL, error) {
+	var result []responses.GetURL
 	for _, url := range repo.usersURL[user] {
-		temp := handlers.ResponseGetURL{
+		temp := responses.GetURL{
 			ShortURL:    repo.baseURL + url,
 			OriginalURL: repo.values[url],
 		}
 		result = append(result, temp)
+	}
+
+	if len(result) == 0 {
+		return result, custom_errors.NewCustomError(errors.New("no content"), http.StatusNoContent)
 	}
 
 	return result, nil
@@ -94,7 +101,7 @@ func (repo *RepositoryMap) Ping(ctx context.Context) error {
 }
 
 // AddManyURL - добавление многих URL сразу.
-func (repo *RepositoryMap) AddManyURL(ctx context.Context, urls []handlers.ManyPostURL, user string) ([]handlers.ManyPostResponse, error) {
+func (repo *RepositoryMap) AddManyURL(ctx context.Context, urls []responses.ManyPostURL, user string) ([]responses.ManyPostResponse, error) {
 	return nil, nil
 }
 
@@ -160,8 +167,8 @@ func (repo *RepositoryMap) DeleteManyURL(ctx context.Context, urls []string, use
 	return nil
 }
 
-func (repo *RepositoryMap) GetStats(ctx context.Context) (handlers.StatResponse, error) {
-	result := handlers.StatResponse{
+func (repo *RepositoryMap) GetStats(ctx context.Context) (responses.StatResponse, error) {
+	result := responses.StatResponse{
 		CountURL:  len(repo.values),
 		CountUser: len(repo.usersURL),
 	}

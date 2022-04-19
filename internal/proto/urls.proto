@@ -1,0 +1,81 @@
+syntax = "proto3";
+package urls;
+option go_package = "/pb";
+
+service URL {
+  rpc Retrieve (RetrieveRequest) returns (RetrieveResponse) {}
+  rpc Create (CreateRequest) returns (CreateResponse) {}
+  rpc GetUserURLs (GetUserURLsRequest) returns (GetUserURLsResponse) {}
+  rpc CreateBatch (CreateBatchRequest) returns (CreateBatchResponse) {}
+  rpc DeleteBatch (DeleteBatchRequest) returns (DeleteBatchResponse) {}
+  rpc GetStats (GetStatsRequest) returns (GetStatsResponse) {}
+}
+
+message RetrieveRequest {
+  string short_url_id = 1;
+}
+
+message RetrieveResponse {
+  string redirect_url = 1;
+  string status = 2;
+}
+
+message CreateRequest {
+  string user_id = 1;
+  string original_url = 2;
+}
+
+message CreateResponse {
+  string response_url = 1;
+  string status = 2;
+}
+
+message GetUserURLsRequest {
+  string user_id = 1;
+}
+
+message GetUserURLsResponse {
+  message URL {
+    string short_url = 1;
+    string original_url = 2;
+  }
+  repeated URL urls = 1;
+  string status = 2;
+}
+
+message CreateBatchRequest {
+  message URL {
+    int32 correlation_id = 1;
+    string original_url = 2;
+  }
+  string user_id = 1;
+  repeated URL urls = 2;
+}
+
+message CreateBatchResponse {
+  message URL {
+    int32 correlation_id = 1;
+    string short_url = 2;
+  }
+  repeated URL urls = 1;
+  string status = 2;
+}
+
+message DeleteBatchRequest {
+  repeated string urls = 1;
+  string user_id = 2;
+}
+
+message DeleteBatchResponse {
+  string status = 1;
+}
+
+message GetStatsRequest {
+  string ip_address = 1;
+}
+
+message GetStatsResponse {
+  int32 users = 1;
+  int32 urls = 2;
+  string status = 3;
+}

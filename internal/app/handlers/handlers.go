@@ -5,94 +5,37 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/responses"
+	custom_errors "github.com/p7chkn/go-musthave-shortener-tpl/internal/errors"
 	"io/ioutil"
 	"net"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/p7chkn/go-musthave-shortener-tpl/internal/shortener"
-	"github.com/p7chkn/go-musthave-shortener-tpl/internal/workers"
 )
 
-//go:generate mockery --name=RepositoryInterface --case camel --inpackage
+//go:generate mockery --name=UserUseCaseInterface --case camel --inpackage
 
-// RepositoryInterface - интерфейс для взаимодействия с репозиторием.
-type RepositoryInterface interface {
-	AddURL(ctx context.Context, longURL string, shortURL string, user string) error
-	GetURL(ctx context.Context, shortURL string) (string, error)
-	GetUserURL(ctx context.Context, user string) ([]ResponseGetURL, error)
-	AddManyURL(ctx context.Context, urls []ManyPostURL, user string) ([]ManyPostResponse, error)
-	DeleteManyURL(ctx context.Context, urls []string, user string) error
-	GetStats(ctx context.Context) (StatResponse, error)
-	Ping(ctx context.Context) error
-}
-
-// PostURL - структура запроса на создание URL.
-type PostURL struct {
-	URL string
-}
-
-// ManyPostURL - структура запроса на создание нескольких URL.
-type ManyPostURL struct {
-	CorrelationID string `json:"correlation_id"`
-	OriginalURL   string `json:"original_url"`
-}
-
-// ManyPostResponse - структура ответа создания множества URL.
-type ManyPostResponse struct {
-	CorrelationID string `json:"correlation_id"`
-	ShortURL      string `json:"short_url"`
-}
-
-// ResponseGetURL - структура ответа на запрос о записанных URL.
-type ResponseGetURL struct {
-	ShortURL    string `json:"short_url"`
-	OriginalURL string `json:"original_url"`
-}
-
-type StatResponse struct {
-	CountURL  int `json:"urls"`
-	CountUser int `json:"users"`
-}
-
-// ErrorWithDB - тип ошибки от базы данных.
-type ErrorWithDB struct {
-	Err   error
-	Title string
-}
-
-func (err *ErrorWithDB) Error() string {
-	return fmt.Sprintf("%v", err.Err)
-}
-
-func (err *ErrorWithDB) Unwrap() error {
-	return err.Err
-}
-
-func NewErrorWithDB(err error, title string) error {
-	return &ErrorWithDB{
-		Err:   err,
-		Title: title,
-	}
+// URLServiceInterface - интерфейс для взаимодействия с репозиторием.
+type URLServiceInterface interface {
+	GetURL(ctx context.Context, url string) (string, error)
+	CreateURL(ctx context.Context, longURL string, user string) (string, error)
+	GetUserURL(ctx context.Context, userID string) ([]responses.GetURL, error)
+	PingDB(ctx context.Context) error
+	CreateBatch(ctx context.Context, urls []responses.ManyPostURL, userID string) ([]responses.ManyPostResponse, error)
+	DeleteBatch(urls []string, userID string)
+	GetStats(ctx context.Context, ip net.IP) (bool, responses.StatResponse, error)
 }
 
 // Handler - структура обработчика запросов.
 type Handler struct {
-	repo          RepositoryInterface
-	baseURL       string
-	wp            workers.WorkerPool
-	trustedSubnet string
+	service URLServiceInterface
 }
 
 // New - функция создания нового обработчика.
-func New(repo RepositoryInterface, basURL string, wp *workers.WorkerPool,
-	trustedSubnet string) *Handler {
+func New(service URLServiceInterface) *Handler {
 	return &Handler{
-		repo:          repo,
-		baseURL:       basURL,
-		wp:            *wp,
-		trustedSubnet: trustedSubnet,
+		service: service,
 	}
 }
 
@@ -103,19 +46,22 @@ func New(repo RepositoryInterface, basURL string, wp *workers.WorkerPool,
 // Если ссылка не найдена - код ответа 404.
 func (h *Handler) RetrieveShortURL(c *gin.Context) {
 	result := map[string]string{}
-	long, err := h.repo.GetURL(c.Request.Context(), c.Param("id"))
-
+	long, err := h.service.GetURL(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		var ue *ErrorWithDB
-		if errors.As(err, &ue) && ue.Title == "deleted" {
-			c.Status(http.StatusGone)
+		statusCode := custom_errors.ParseError(err)
+		switch statusCode {
+		case http.StatusGone:
+			c.Status(statusCode)
+			return
+		case http.StatusNotFound:
+			result["detail"] = err.Error()
+			c.IndentedJSON(statusCode, result)
+			return
+		default:
+			c.Status(http.StatusInternalServerError)
 			return
 		}
-		result["detail"] = err.Error()
-		c.IndentedJSON(http.StatusNotFound, result)
-		return
 	}
-
 	c.Header("Location", long)
 	c.String(http.StatusTemporaryRedirect, "")
 }
@@ -134,19 +80,19 @@ func (h *Handler) CreateShortURL(c *gin.Context) {
 		h.handleError(c, err)
 		return
 	}
-	longURL := string(body)
-	shortURL := shortener.ShorterURL(longURL)
-	err = h.repo.AddURL(c.Request.Context(), longURL, shortURL, c.GetString("userId"))
+	responseURL, err := h.service.CreateURL(c.Request.Context(), string(body), c.GetString("userId"))
 	if err != nil {
-		var ue *ErrorWithDB
-		if errors.As(err, &ue) && ue.Title == "UniqConstraint" {
-			c.String(http.StatusConflict, h.baseURL+shortURL)
+		statusCode := custom_errors.ParseError(err)
+		switch statusCode {
+		case http.StatusConflict:
+			c.String(statusCode, responseURL)
+			return
+		default:
+			c.Status(http.StatusInternalServerError)
 			return
 		}
-		c.IndentedJSON(http.StatusInternalServerError, err)
-		return
 	}
-	c.String(http.StatusCreated, h.baseURL+shortURL)
+	c.String(http.StatusCreated, responseURL)
 }
 
 // ShortenURL - создание укороченной ссылки.
@@ -159,7 +105,7 @@ func (h *Handler) CreateShortURL(c *gin.Context) {
 func (h *Handler) ShortenURL(c *gin.Context) {
 
 	result := map[string]string{}
-	var url PostURL
+	var url responses.PostURL
 
 	defer c.Request.Body.Close()
 
@@ -178,36 +124,41 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 		h.handleError(c, errors.New("bad request"))
 		return
 	}
-	shortURL := shortener.ShorterURL(url.URL)
-	err = h.repo.AddURL(c.Request.Context(), url.URL, shortURL, c.GetString("userId"))
+	responseURL, err := h.service.CreateURL(c.Request.Context(), url.URL, c.GetString("userId"))
 	if err != nil {
-		var ue *ErrorWithDB
-		if errors.As(err, &ue) && ue.Title == "UniqConstraint" {
-			result["result"] = h.baseURL + shortURL
+
+		statusCode := custom_errors.ParseError(err)
+		switch statusCode {
+		case http.StatusConflict:
+			result["result"] = responseURL
 			c.IndentedJSON(http.StatusConflict, result)
 			return
+		default:
+			c.Status(http.StatusInternalServerError)
+			return
 		}
-		c.IndentedJSON(http.StatusInternalServerError, err)
-		return
 	}
-	result["result"] = h.baseURL + shortURL
+	result["result"] = responseURL
 	c.IndentedJSON(http.StatusCreated, result)
 }
 
 // GetUserURL - получение списка URL пользователя.
 // При успешном запросе - код ответа 200 и списко URL пользователя в
-// формате ResponseGetURL.
+// формате GetURL.
 // В случае ошибки получение ссылок из базы данных - код ответа 500.
 // В случае отсутствия ссылок у пользователя - код ответа 204.
 func (h *Handler) GetUserURL(c *gin.Context) {
-	result, err := h.repo.GetUserURL(c.Request.Context(), c.GetString("userId"))
+	result, err := h.service.GetUserURL(c.Request.Context(), c.GetString("userId"))
 	if err != nil {
-		c.IndentedJSON(http.StatusInternalServerError, err)
-		return
-	}
-	if len(result) == 0 {
-		c.IndentedJSON(http.StatusNoContent, result)
-		return
+		statusCode := custom_errors.ParseError(err)
+		switch statusCode {
+		case http.StatusNoContent:
+			c.IndentedJSON(statusCode, result)
+			return
+		default:
+			c.IndentedJSON(http.StatusInternalServerError, err)
+			return
+		}
 	}
 	c.IndentedJSON(http.StatusOK, result)
 }
@@ -216,7 +167,7 @@ func (h *Handler) GetUserURL(c *gin.Context) {
 // В случае нормального соединения - код ответа 200.
 // В случае ошибки с базой данных - код ответа 500.
 func (h *Handler) PingDB(c *gin.Context) {
-	err := h.repo.Ping(c.Request.Context())
+	err := h.service.PingDB(c.Request.Context())
 	if err != nil {
 		c.String(http.StatusInternalServerError, "")
 		return
@@ -231,7 +182,7 @@ func (h *Handler) PingDB(c *gin.Context) {
 // В случае ошибки в формате запроса - код ответа 400.
 // В случае ошибки записи в базу данных - код ответа 400.
 func (h *Handler) CreateBatch(c *gin.Context) {
-	var data []ManyPostURL
+	var data []responses.ManyPostURL
 	defer c.Request.Body.Close()
 
 	body, err := ioutil.ReadAll(c.Request.Body)
@@ -244,7 +195,7 @@ func (h *Handler) CreateBatch(c *gin.Context) {
 		h.handleError(c, err)
 		return
 	}
-	response, err := h.repo.AddManyURL(c.Request.Context(), data, c.GetString("userId"))
+	response, err := h.service.CreateBatch(c.Request.Context(), data, c.GetString("userId"))
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -276,42 +227,17 @@ func (h *Handler) DeleteBatch(c *gin.Context) {
 		h.handleError(c, err)
 		return
 	}
-	var sliceData [][]string
-	for i := 10; i <= len(data); i += 10 {
-		sliceData = append(sliceData, data[i-10:i])
-	}
-	rem := len(data) % 10
-	if rem > 0 {
-		sliceData = append(sliceData, data[len(data)-rem:])
-	}
-	for _, item := range sliceData {
-		func(taskData []string) {
-			h.wp.Push(func(ctx context.Context) error {
-				err := h.repo.DeleteManyURL(ctx, taskData, c.GetString("userId"))
-				return err
-			})
-		}(item)
-	}
+	h.service.DeleteBatch(data, c.GetString("userId"))
 
 	c.Status(http.StatusAccepted)
 }
 
 func (h *Handler) GetStats(c *gin.Context) {
-	if h.trustedSubnet == "" {
+	hasPermission, response, err := h.service.GetStats(c.Request.Context(), net.ParseIP(c.GetHeader("X-Real-IP")))
+	if !hasPermission {
 		c.Status(http.StatusForbidden)
 		return
 	}
-	realAddress := net.ParseIP(c.GetHeader("X-Real-IP"))
-	_, subnet, err := net.ParseCIDR(h.trustedSubnet)
-	if err != nil {
-		h.handleError(c, errors.New("bad request"))
-		return
-	}
-	if !subnet.Contains(realAddress) {
-		c.Status(http.StatusForbidden)
-		return
-	}
-	response, err := h.repo.GetStats(c.Request.Context())
 	if err != nil {
 		h.handleError(c, errors.New("bad request"))
 		return

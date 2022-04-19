@@ -6,11 +6,14 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/responses"
+	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/services"
+	custom_errors "github.com/p7chkn/go-musthave-shortener-tpl/internal/errors"
+	"net/http"
 
 	"github.com/jackc/pgerrcode"
 	"github.com/lib/pq"
 
-	"github.com/p7chkn/go-musthave-shortener-tpl/internal/app/handlers"
 	"github.com/p7chkn/go-musthave-shortener-tpl/internal/shortener"
 )
 
@@ -27,8 +30,8 @@ type PostgresDataBase struct {
 }
 
 // NewDatabaseRepository - создание нового интерфейства для репозитория.
-func NewDatabaseRepository(baseURL string, db *sql.DB) handlers.RepositoryInterface {
-	return handlers.RepositoryInterface(NewDatabase(baseURL, db))
+func NewDatabaseRepository(baseURL string, db *sql.DB) services.UserRepositoryInterface {
+	return services.UserRepositoryInterface(NewDatabase(baseURL, db))
 }
 
 // NewDatabase - создание новой структуры взаимодействия с базой данных.
@@ -61,7 +64,7 @@ func (db *PostgresDataBase) AddURL(ctx context.Context, longURL string, shortURL
 
 	if err, ok := err.(*pq.Error); ok {
 		if err.Code == pgerrcode.UniqueViolation {
-			return handlers.NewErrorWithDB(err, "UniqConstraint")
+			return custom_errors.NewCustomError(err, http.StatusConflict)
 		}
 	}
 
@@ -74,20 +77,22 @@ func (db *PostgresDataBase) GetURL(ctx context.Context, shortURL string) (string
 	sqlGetURLRow := `SELECT origin_url, is_deleted FROM urls WHERE short_url=$1 FETCH FIRST ROW ONLY;`
 	query := db.conn.QueryRowContext(ctx, sqlGetURLRow, shortURL)
 	result := GetURLData{}
-	query.Scan(&result.OriginURL, &result.IsDeleted)
+	if err := query.Scan(&result.OriginURL, &result.IsDeleted); err != nil {
+		return "", nil
+	}
 	if result.OriginURL == "" {
-		return "", handlers.NewErrorWithDB(errors.New("not found"), "Not found")
+		return "", custom_errors.NewCustomError(errors.New("not found"), http.StatusNotFound)
 	}
 	if result.IsDeleted {
-		return "", handlers.NewErrorWithDB(errors.New("deleted"), "deleted")
+		return "", custom_errors.NewCustomError(errors.New("deleted"), http.StatusGone)
 	}
 	return result.OriginURL, nil
 }
 
 // GetUserURL - получение всех URL пользователя.
-func (db *PostgresDataBase) GetUserURL(ctx context.Context, user string) ([]handlers.ResponseGetURL, error) {
+func (db *PostgresDataBase) GetUserURL(ctx context.Context, user string) ([]responses.GetURL, error) {
 
-	var result []handlers.ResponseGetURL
+	var result []responses.GetURL
 
 	sqlGetUserURL := `SELECT origin_url, short_url FROM urls WHERE user_id=$1 AND is_deleted=false;`
 	rows, err := db.conn.QueryContext(ctx, sqlGetUserURL, user)
@@ -100,7 +105,7 @@ func (db *PostgresDataBase) GetUserURL(ctx context.Context, user string) ([]hand
 	defer rows.Close()
 
 	for rows.Next() {
-		var u handlers.ResponseGetURL
+		var u responses.GetURL
 		err = rows.Scan(&u.OriginalURL, &u.ShortURL)
 		if err != nil {
 			return result, err
@@ -108,14 +113,16 @@ func (db *PostgresDataBase) GetUserURL(ctx context.Context, user string) ([]hand
 		u.ShortURL = db.baseURL + u.ShortURL
 		result = append(result, u)
 	}
-
+	if len(result) == 0 {
+		return result, custom_errors.NewCustomError(errors.New("no content"), http.StatusNoContent)
+	}
 	return result, nil
 }
 
 // AddManyURL - добавление многих URL сразу.
-func (db *PostgresDataBase) AddManyURL(ctx context.Context, urls []handlers.ManyPostURL, user string) ([]handlers.ManyPostResponse, error) {
+func (db *PostgresDataBase) AddManyURL(ctx context.Context, urls []responses.ManyPostURL, user string) ([]responses.ManyPostResponse, error) {
 
-	var result []handlers.ManyPostResponse
+	var result []responses.ManyPostResponse
 	tx, err := db.conn.Begin()
 
 	if err != nil {
@@ -137,7 +144,7 @@ func (db *PostgresDataBase) AddManyURL(ctx context.Context, urls []handlers.Many
 		if _, err = stmt.ExecContext(ctx, user, u.OriginalURL, shortURL); err != nil {
 			return nil, err
 		}
-		result = append(result, handlers.ManyPostResponse{
+		result = append(result, responses.ManyPostResponse{
 			CorrelationID: u.CorrelationID,
 			ShortURL:      db.baseURL + shortURL,
 		})
@@ -146,31 +153,31 @@ func (db *PostgresDataBase) AddManyURL(ctx context.Context, urls []handlers.Many
 	if err != nil {
 		return nil, err
 	}
-	tx.Commit()
-	return result, nil
+	err = tx.Commit()
+	return result, err
 }
 
 // DeleteManyURL - удаление многиз URL по id.
 func (db *PostgresDataBase) DeleteManyURL(ctx context.Context, urls []string, user string) error {
 
-	sql := `UPDATE urls SET is_deleted = true WHERE short_url = ANY ($1);`
+	sqlDeleteURL := `UPDATE urls SET is_deleted = true WHERE short_url = ANY ($1);`
 	var urlsToDelete []string
 	for _, url := range urls {
 		if db.isOwner(ctx, url, user) {
 			urlsToDelete = append(urlsToDelete, url)
 		}
 	}
-	_, err := db.conn.ExecContext(ctx, sql, pq.Array(urlsToDelete))
+	_, err := db.conn.ExecContext(ctx, sqlDeleteURL, pq.Array(urlsToDelete))
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (db *PostgresDataBase) GetStats(ctx context.Context) (handlers.StatResponse, error) {
+func (db *PostgresDataBase) GetStats(ctx context.Context) (responses.StatResponse, error) {
 	sqlGetStats := `SELECT COUNT(DISTINCT user_id), COUNT (DISTINCT origin_url) FROM urls;`
 	query := db.conn.QueryRowContext(ctx, sqlGetStats)
-	result := handlers.StatResponse{}
+	result := responses.StatResponse{}
 
 	err := query.Scan(&result.CountUser, &result.CountURL)
 	return result, err
